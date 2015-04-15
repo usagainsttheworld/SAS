@@ -165,3 +165,136 @@ proc print data=sasuser.insure;
 run;
 ods html close;
 ods listing;
+
+*PROC Tabulate;
+proc tabulate data=sasuser.admit;
+	class sex;
+	var height weight;
+	table sex,(height weight)*mean;
+run;
+*select obs and summarize categories, "keylabel, label", format;
+proc tabulate data=sasuser.admit format=9.;
+	class actlevel;
+	var age;
+	table actlevel all,age*mean;
+	where sex='F';
+	label actlevel='activity level';
+	keylabel all='all levels' mean='average';
+	title 'Statistics for Females';
+run;
+*enhanced table-"title, footnote, label";
+proc tabulate data=sasuser.therapy;
+	var walkjogrun swim;
+	table walkjogrun swim;
+	title 'Attendance in Exercise Therapies';
+	footnote1 'March 1-15';
+	label walkjogrun='Walk/Jog/Run';
+run;
+
+*three-dimensional table;
+proc tabulate data=sasuser.admit format=9.;
+	class actlevel sex;
+	var age;
+	table sex,actlevel all,age*mean;
+	label actlevel='activity level';
+	keylabel all='all levels' mean='average';
+run;
+*"styles" to heading cells (change color);
+ods listing close;
+ods html path='C:\Users\mac\Desktop\SAS' 
+         body='active.html';
+proc tabulate data=sasuser.admit format=4.1;
+	var age;
+	class sex actlevel/style={background=white};
+	keyword mean/ style={background=white};
+	table sex*actlevel*age,mean/
+          box={style={background=itgray}};
+run;
+ods html close;
+ods listing;
+
+*"style" to class level, diffrent color for each class;
+ods listing close;
+ods html path='C:\Users\mac\Desktop\SAS' 
+         body='active.html';
+proc format;
+	value$colsex 'F'='lipk'
+	             'M'='pab';
+proc tabulate data=sasuser.admit format=4.1;
+	var age;
+	class sex actlevel/style={background=vpab};
+	classlev sex/style={background=$colsex.};
+	keyword mean/ style={background=papk};
+	table sex*actlevel*age,mean/
+          box={style={background=papk}};
+run;
+ods html close;
+ods listing;
+
+*change color for other cells, parent style;
+ods listing close;
+ods html path='C:\Users\mac\Desktop\SAS' 
+         body='active.html';
+proc format;
+	value$colsex 'F'='lipk'
+	             'M'='vpab';
+proc tabulate data=sasuser.admit format=4.1;
+	var age/style=<parent>;
+	class sex actlevel/style={background=vpag};
+	classlev sex/style={background=$colsex.};
+	classlev actlevel/style=<parent>;
+	table sex*actlevel*age*{style=<parent>},mean/
+          box={style={background=papk}};
+	keyword mean/ style={background=vpag};
+run;
+ods html close;
+ods listing;
+
+*color cell by value range;
+ods listing close;
+ods html path='C:\Users\mac\Desktop\SAS' 
+         body='active.html';
+proc format;
+	value$colsex 'F'='lipk'
+	             'M'='vpab';
+	value agealert low-29='lio'
+	               other='vpag';
+run;
+proc tabulate data=sasuser.admit format=4.1;
+	var age/style=<parent>;
+	class sex actlevel/style={background=vpag};
+	classlev sex/style={background=$colsex.};
+	classlev actlevel/style=<parent>;
+	table sex*actlevel*age*{style={background=agealert.
+          font_weight=bold foreground=black}},mean/
+          box={style={background=papk}};
+	keyword mean/ style={background=vpag};
+run;
+ods html close;
+ods listing;
+
+*add text comment to cell;
+ods listing close;
+ods html path='C:\Users\mac\Desktop\SAS' 
+         body='active.html';
+proc format;
+	value$colsex 'F'='lipk'
+	             'M'='vpab';
+	value agealert low-29='lio'
+	               other='vpag';
+	value ageflyov low-29='cound be a problem'
+	               other='';
+run;
+proc tabulate data=sasuser.admit format=4.1;
+	var age/style=<parent>;
+	class sex actlevel/style={background=vpag};
+	classlev sex/style={background=$colsex.};
+	classlev actlevel/style=<parent>;
+	table sex*actlevel*age*{style={background=agealert.
+	      flyover=ageflyov.
+          font_weight=bold foreground=black}},mean/
+          box={style={background=papk}};
+	keyword mean/ style={background=vpag};
+run;
+ods html close;
+ods listing;
