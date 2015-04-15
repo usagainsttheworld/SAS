@@ -37,3 +37,131 @@ data sasuser.sales;
 run; 
 proc print data=sasuser.sales; 
 run;
+
+*creat user defined format;
+libname library 'C:\Users\mac\Desktop\SAS';
+proc format lib=library fmtlib;
+	value $ITEMFMT
+		'C'='Cassette'
+		'R'='Radio'
+		'T'='Television';
+run;
+*use a user defined format on raw data;
+data sasuser.orders;
+	infile aug99dat;
+	input ID 3. @5 Date date7.
+         Item $13 Quantity 15-17
+         Price 19-24 TotalCost 26-32;
+	format date date 9.item $itemfmt.totalcost dollar9.2;
+run;
+proc print data=sasuser.orders;
+run;
+
+*create a report"across, where, column, order..";
+proc report data=sasuser.diabetes nowd headline headskip;
+	column id sex weight fastgluc postgluc; 
+	where age > 40;
+	define id /order descending;
+	define weight/format=comma6.2 spacing=4;
+	define sex / across width=7 spacing=4 center 'sex of/Patient';
+	define fastgluc / 'Fasting/Glucose';
+	define postgluc / 'Postprandial/Glucose' width=12;
+run;
+
+* summary report-"group, min, mean";
+proc report data=sasuser.diabetes nowd headline headskip;
+	column sex weight fastgluc postgluc; 
+	where age > 40;
+	define weight/mean 'average/weight'format=comma6.2 spacing=4 width=7;
+	define sex/group width=7 spacing=4 center 'sex of/Patient';
+	define fastgluc / min 'Minimum/Fasting/Glucose';
+	define postgluc /max 'Maximum/Postprandial/Glucose' width=12;
+run;
+
+* summary report-"compute";
+proc report data=sasuser.diabetes nowd headline headskip;
+	column id sex weight fastgluc postgluc glucrange; *add computed var!!;
+	where age > 40;
+	define id /order descending;
+	define weight/format=comma6.2 spacing=4;
+	define sex / across width=7 spacing=4 center 'sex of/Patient';
+	define fastgluc / 'Fasting/Glucose';
+	define postgluc / 'Postprandial/Glucose' width=12;
+	define glucrange / computed 'Glucose/Range';
+	compute glucrange;
+		glucrange = postgluc.sum - fastgluc.sum;
+	endcomp;
+run;
+
+*statistics-"means, maxdec,var";
+proc means data=sasuser.diabetes mean range std maxdec=1;
+	var age pulse fastgluc postgluc;
+run; 
+
+*grouped series of statistics-"class";
+proc means dat=sasuser.heart min mean max maxdec=0;
+	var arterial heart cardiac urinary;
+	class survive shock;
+run;
+*grouped series of statistics-"by";
+proc sort data=sasuser.heart out=work.heartsort; *sort first!!!;
+	by survive shock;
+run;
+proc means data=work.heartsort min mean max maxdec=0;
+	var arterial heart cardiac urinary;
+	by survive shock;
+run;
+
+*proc mean;
+proc means data=sasuser.heart;
+	var heart cardiac urinary;
+	class survive shock;
+	output out=work.sum_patients
+		mean=avgheart avgcardiac avgurinary;
+run;
+*proc summary with option print;
+proc summary data=sasuser.heart print;
+	var heart cardiac urinary;
+	class survive shock;
+	output out=work.sum_patients
+		mean=avgheart avgcardiac avgurinary;
+run;
+*PROC FREQ, table;
+proc freq data=sasuser.heart;
+	table sex shock survive;
+run;
+
+*two-way crosstabulation;
+proc freq data=sasuser.heart;
+	table survive*shock;
+run;
+
+*three-way corsstabulation;
+proc freq data=sasuser.heart;
+	table sex*survive*shock/list;
+run;
+
+*control content of crosstabulation output;
+proc freq data=sasuser.heart;
+	table shock*survive /nofreq nopercent;
+run;
+
+*HTML output;
+ods listing close;
+ods html body='C:\Users\mac\Desktop\SAS';
+proc print data=sasuser.insure;
+run;
+ods html close;
+ods listing;
+
+*HTML output with frame;
+ods listing close;
+ods html body='C:\Users\mac\Desktop\SAS\myoutput.html'
+	     contents='C:\Users\mac\Desktop\SAS\mytoc.html'
+	     frame='C:\Users\mac\Desktop\SAS\myframe.html';
+proc print data=sasuser.admit;
+run;
+proc print data=sasuser.insure;
+run;
+ods html close;
+ods listing;
