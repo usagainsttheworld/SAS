@@ -298,3 +298,78 @@ proc tabulate data=sasuser.admit format=4.1;
 run;
 ods html close;
 ods listing;
+
+****************************************************;
+*Creating and Managing Variables;
+*get total using raw data;
+data sasuser.sales (keep = month cumtotal); *cut variables;
+	infile saledata;
+	input LastName $ 1-7 Month $ 9-11
+		Residential 13-21 
+		Commercial 23-31;
+	Tatal = Residential + Commercial;
+	retain cumTotal 1254657; *set initial value of total;
+	cumTotal+Tatal; *get total;
+run;
+proc print data=sasuser.sales;
+run;
+
+*format and label using raw data;
+data sasuser.sales (keep = month cumtotal); *cut variables;
+	infile saledata;
+	input LastName $ 1-7 Month $ 9-11
+		Residential 13-21 
+		Commercial 23-31;
+	format residential commercial dollar12.2;
+	label month='Month of 1999';
+run;
+proc print data=sasuser.sales;
+run;
+
+*SELECT group to assign values;
+data sasuser.regions;   
+	length Region $ 13;
+	infile cardata;   
+	input Year 1-4 Country $ 6-11
+		Type $ 13-18 @20 Sales comma10.;
+	select(country);
+		when ('US','CANADA''MEXICO') region='North America';
+		when ('JAPEN') region='Asia';
+		otherwise region='unknow';
+	end;*remember to add end!!!!!
+run;
+proc print data=sasuser.regions;
+run;
+****************************************************;
+* creat a data set, select obs based on condition;
+data work.testtime (keep=timemin timesec); *create data set, keep obs;
+	set sasuser.stress2 (drop=id name); *data to read from/not read obs;
+	if Maxhr < 155 or resthr < 71; *select obs;
+run;
+proc print data=work.testtime;
+run;
+*grouping variable;
+proc sort data=sasuser.pilots out=work.pilots;
+   by state;
+run;
+data work.pilotjob(drop=salary);
+   set work.pilots(keep=state salary);
+   by state;
+   if first.state then TotalPay=0; * select only the last observation;
+   totalpay+salary;
+   if last.state;
+run;
+proc print data=work.pilotjob noobs;
+   sum totalpay;
+   format totalpay dollar12.0;
+run;
+
+*end of data;
+data work.testtime;
+   set sasuser.stress2 end=last; *only get last obs;
+   if last;
+run;
+proc print data=work.testtime;
+run;
+
+
