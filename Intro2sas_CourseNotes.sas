@@ -488,3 +488,99 @@ proc sql;
 	group by sex;
 quit;
 
+****************************************************;
+*charactor to numeric data;
+data sasuser.talent2;
+   set sasuser.talent;
+   FtHeight=input(height,2.)/12;
+proc print data=sasuser.talent2;
+run;
+
+*numeric data to character data;
+data sasuser.njtalent;
+   set sasuser.talent;
+   NewPhone='(201)'||put(phone,7.); 
+proc print data=sasuser.njtalent;
+   var id phone newphone;
+run;
+
+*extract month from a date value;
+data sasuser.talent10;
+	set sasuser.talent;
+	if month(LastHired)=10;
+	format lasthired date9.;
+run;
+proc print data=sasuser.talent10;
+run;
+
+data sasuser.taloc99;
+	set sasuser.talent;
+	if month(lasthired)=10 and year(lasthired)=1999;
+	format lasthired date9.;
+run;
+proc print data=sasuser.taloc99;
+run;
+
+*Extract year from a data value;
+data sasuser.talent99;
+	set sasuser.talent;
+	if year(lasthired)=1999;
+	format lasthired date9.;
+run;
+proc print data=sasuser.talent99;
+run;
+
+*'mdy';
+data sasuser.Master;
+	set sasuser.talent;
+	RepHired=mdy(Month, Day, 1998);
+run;
+proc print data=sasuser.Master;
+run;
+
+*how many 'day'/'month'/'quatar' past;
+data sasuser.master;
+	set sasuser.master;
+	Qtrselapsed=intck('qtr', rephired, lasthired);
+run;
+proc print data=sasuser.master;
+run;
+
+*Extract a word;
+data sasuser.agency99;
+	set sasuser.talent;
+	State=scan(address2,2);
+run;
+proc print data=sasuser.agency99;
+run;
+
+*Extract a substring;
+data sasuser.newtal;
+	set sasuser.talent;
+	sex=substr(id,4,1);
+run;
+proc print data=sasuser.newtal;
+run;
+
+*Replace contents of a character variable;
+data sasuser.njtalent;
+   set sasuser.talent;
+   NewPhone='(201)'||phone;
+proc print data=sasuser.njtalent;
+   var id phone newphone;
+run;
+
+data sasuer.detalent;
+	set sasuser.njtalent;
+	substr(newphone,2,3)='302';
+run;
+proc print data=sasuser.detalent;
+run;
+
+*search a character 'index';
+data sasuser.stage;
+	set sasuser.talent;
+	if index(comment, 'stage')>0;
+run;
+proc print data=sasuser.stage;
+run;
