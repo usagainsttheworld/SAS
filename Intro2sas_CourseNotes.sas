@@ -372,4 +372,92 @@ run;
 proc print data=work.testtime;
 run;
 
+****************************************************;
+*combining data sets 'set a, set c';
+proc sort data=sasuser.admitjune out= work.adsort;
+	by id;
+run;
+proc sort data=sasuser.stresstest out=work.strsort;
+	by id;
+run;
+proc print data=work.adsort;
+run;
+proc print data=work.strsort;
+run;
+data work.one2one;
+	set work.adsort(keep=id name sex age);*kept variables;
+	set work.strsort(keep=Resthr Maxhr Tolerance);
+run;
+proc print data=work.one2one;
+run;
 
+*concatenating data sets 'set a b';
+data work.combined (drop=Rechr);*drop var from new data set;
+	set sasuser.stress98
+	    sasuser.stress99 (drop=TimeMin TimeSec); *no 'set' needed!!!;
+	if Resthr < 72; *select var for new data set;
+run;
+proc print data=work.combined;
+run;
+
+*Interleave data set 'by';
+proc sort data=sasuser.stress98 out=work.stress98;
+by Tolerance; *sort by var;
+run;
+proc sort data=sasuser.stress99 out=work.stress99;
+by Tolerance;
+run;
+data work.Interlv;
+	set work.stress98 work.stress99;
+	by Tolerance;
+run;
+proc print data=work.Interlv;
+run;
+
+*Merge data sets, data have to 'sort!!!!!!' first;
+data sasuser.merged;
+	merge work.adsort work.strsort;
+	by id;
+run;
+proc print data=sasuser.merged;
+run;
+
+*Merge data and Rename variables;
+proc print data=sasuser.repertory;
+run;
+proc print data=sasuser.company;
+run;
+proc print datat=sasuser.finance;
+run;
+data work.finrep;
+   merge sasuser.repertory 
+         sasuser.finance (rename=(Name=LastName Date=HireDate))
+         sasuser.company ;
+   by ssn;
+run;
+proc print data=work.finrep;
+run;
+
+*Merge data and Exclude Unmatched obs;
+data sasuser.merged;
+   merge work.adsort
+         (in=inad rename=(date=AdmitDate))
+         work.strsort
+         (in=instr rename=(date=VisitDate));
+   by id;
+   if inad and instr; *merged data with only obs appear in both data sets;
+run;
+proc print data=sasuser.merged;
+run;
+
+*Merge data with select variables;
+data sasuser.merged;
+   merge work.adsort
+     (drop=height weight rename=(date=AdmitDate) in=inad)
+      work.strsort
+     (keep=id tolerance date rename=(date=VisitDate) in=instr);
+   by id;
+   if inad and instr;
+run;
+proc print data=sasuser.merged;
+run;
