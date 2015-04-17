@@ -461,3 +461,30 @@ data sasuser.merged;
 run;
 proc print data=sasuser.merged;
 run;
+
+****************************************************;
+*PROC SQL;
+proc sql;
+	select actlevel,age,kgwgt,meterhgt,
+		kgwgt/meterhgt**2 as BodyMass 
+	from sasuser.newadmit
+	where sex='F'
+	order by actlevel; *indention, as new variable;
+quit;
+
+*Jion two tables using SQL;
+proc sql;
+	select therapy1999.month,walkjogrun,swim,
+	       treadmill,newadmit,
+		   walkjogrun+swim as Exercise
+		from sasuser.therapy1999,sasuser.totals2000
+		where therapy1999.month=totals2000.month;
+quit;
+
+*summarize and group data using SQL;
+proc sql;
+	select sex, avg(age) as AverageAge, avg(weight) as AverageWeight
+	from  sasuser.diabetes
+	group by sex;
+quit;
+
