@@ -690,3 +690,108 @@ data sasuser.summary(drop=i j total);
 run;
 proc print data=sasuser.summary;
 run;
+
+****************************************************;
+*Automatic Macro variable;
+title;
+footnote "Date: &sysdate9, &sysday"; *date, day of the week;
+data sasuser.talent99;
+   set sasuser.talent;
+   if year(lasthired)=1999;
+   format birthdate lasthired date.;
+run;
+proc print data=sasuser.talent99;
+run; 
+footnote; *cancel footnote;
+run;
+
+title1 'Temporary Employees for 1999';
+title2 "as of &systime, &sysday, &sysdate9";
+data work.talent99;
+   set sasuser.talent;
+   sasver="&sysver"; *SAS vesion;
+   opsystem="&sysscp";*operating system;
+   if year(lasthired)=1999;
+   format birthdate lasthired date.;
+run;
+proc print data=work.talent99;
+run;
+
+*Creat reference Macro variables!!;
+%let number=11;
+%let name=November;
+title1 "Actors Hired in &name";*don't forget the ""!;
+footnote1 "Report Number &number";
+data sasuser.newhire;
+   set sasuser.talent99;
+   if month(lasthired)=&number;
+   format lasthired date9.;
+run;
+proc print data=sasuser.newhire;
+run;
+title; *cancel title and footnote;
+footnote;
+run;
+
+*Display values of macro var in log;
+options symbolgen; *display in log;
+%let number=11;
+%let name=November;
+title1 "Actors Hired in &name";
+footnote1 "Report Number &number";
+data sasuser.newhire;
+   set sasuser.talent99;
+   if month(lasthired)=&number;
+   format birthdate lasthired date.;
+run;
+proc print data=sasuser.newhire;
+run;
+title;
+footnote;
+run;
+
+*Call Symput to creat macro var (calculated by Data step);
+%let number=11;
+%let name=November;
+%let abbrev=nov;
+%let year=99;
+footnote1 "Report Number &number";
+data &abbrev.hire;
+   set sasuser.talent&year;
+   if month(lasthired)=&number then
+   do;
+      Fee=rate*.10;
+      TotFee+fee;
+	  call symput('total',TotFee); *creat Macro var during data step;
+      output;
+   end;
+   format lasthired date9.;
+run;
+title1 "Actors Hired in &name";
+title2 "Agency Commission &total";
+proc print data=&abbrev.hire;
+run;
+
+*control execution of Call Symput routine to only once;
+%let number=11;
+%let name=November;
+%let abbrev=nov;
+%let year=99;
+data &abbrev.hire;
+   set sasuser.talent&year end=final; *end-of-file marker;
+   if month(lasthired)=&number then
+   do;
+      Fee=rate*.10;
+      TotFee+fee;
+	  if final then 
+		call symput('total', put(TotFee,dollar6.));*"put"to remove blanks;
+      output;
+   end;
+   call symput('total',
+        put(totfee,dollar6.));
+run;
+title1 "Actors Hired in &name";
+title2 "Agency Commission &total";
+footnote1 "Report Number &number";
+proc print data=&abbrev.hire;
+run; 
