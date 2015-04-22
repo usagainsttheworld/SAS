@@ -795,3 +795,249 @@ title2 "Agency Commission &total";
 footnote1 "Report Number &number";
 proc print data=&abbrev.hire;
 run; 
+
+**********************************************************;
+*Reading data from raw data file;
+data sasuser.choltest;
+	infile choldata; *fileref to read nonSAS files; 
+	input idnum $ 10-14 department $ 10-11
+	      lastname $ 1-9 cholesterol 15-19; *space between name and col;
+run;
+proc print data=sasuser.choltest;
+run;
+
+*point chntrol for input raw data file;
+data sasuser.vansales;
+   infile vandata;
+   input @1 Region $9. @13 Quarter 1.
+         @16 TotalSales comma11.;
+run;
+proc print data=sasuser.vansales;
+run;
+
+*insert @or + column pointer;
+data sasuser.vansales;
+   infile vandata;
+   input @13 Quarter 1. @1 Region $9.
+         @16 TotalSales comma11.;
+run;
+proc print data=sasuser.vansales;
+run;
+
+*format input to read raw data;
+data sasuser.carsales;
+	infile cardata;
+	input Year 4. @6 Country $6 @13 Type $6 @20 Sales comma10.;
+run;
+proc print data=sasuser.carsales;
+run;
+
+******************************************************;
+*use list input to read free-format data;
+data sasuser.booksale;
+	infile bookdata;
+	input bookid $ booktype $ numsold;
+run;
+proc print data=sasuser.booksale;
+run;
+
+*use DLM=option list input to read free-format data;
+data sasuser.stock1;
+	infile invent1 DLM=':';
+	input bookid $ author $ booktype $ instock;
+run;
+proc print data=sasuser.stock1;
+run;
+
+*read data with missing values at the end;
+data sasuser.childsrv;
+	infile survey1 missover;
+	input age (book1-book3) ($); *read miltiple cols;
+run;
+proc print data=sasuser.childsrv;
+run;
+
+*Length statement in list input;
+data sasuser.stock2;
+	infile invent2;
+	length author $ 11; *avoid truck of the var;
+	input bookid $ author $ booktype $ instock;
+run;
+proc print data=sasuser.stock2;
+run;
+
+*read nonstandard values with blank(&);
+data sasuser.publish;
+	infile pubdata ;
+	input Bookid $ Publisher & $22. Year; *there are two blank in Publisher var;
+run;
+proc print data=sasuser.publish;
+run;
+
+*use column, formatted, and list input read raw data;
+data sasuser.reorder;
+    infile orderdat;
+    input PubID 1-3 BookID $ 5-10 
+              @12 Date date7.
+              BookType $ Number;
+run;
+proc print data=sasuser.reorder;
+     format date date9.;
+run;
+
+*****************************************************
+*Date and Time;
+option yearcutoff=1920;
+data sasuser.powrcost;
+	infile powerdat;
+	input FirstDay date7. @10 LastDay date7. 
+	      @19 KwhUsed 4. @25 KwhRate 5.;
+		  day= LastDay - FirstDay +1; 
+		  cost=KwhUsed*KwhRate;
+		  AvgCost=cost/day;
+run;
+proc print data=sasuser.powrcost;
+	format datein firstday lastday weekdate21.; *date format including weekday;
+run;
+
+**************************************************
+*read multiple records as one obs;
+data sasuser.emplist1;
+	infile Personel;
+	input Name $14. ID 16-19 /
+		  JobCode 3. Department $5-16 /
+		  Salary comma9.;
+run;
+proc print data=sasuser.emplist1;
+run;
+
+*read multiple records non-sequentially;
+data sasuser.emplist2;
+	infile Personel;
+	input #2 Department $5-16 
+          #1 ID 16-19
+		  #1 Name $14. 
+		  #2 JobCode 3.
+		  #3 Salary comma9.;
+run;
+proc print data=sasuser.emplist2;
+run;
+
+* alternate;
+data sasuser.emplist2;
+	infile Personel;
+	input #2 Department $5-16 
+          #1 ID 16-19 @1 Name $14./ 
+		  JobCode 3./
+		  Salary comma9.;
+run;
+proc print data=sasuser.emplist2;
+run;
+
+************************************************;
+*creat one obs for each repeating block of data;
+data sasuser.actlevel;
+	infile excdata1;
+	input ID $ Actlevel : $9. @@;
+run;
+proc print data=sasuser.actlevel;
+run;
+
+*one obs for each repeating field;
+data sasuser.group1;
+   infile excdata2;
+   input ID $ @;
+   do Choice =1 to 3;
+      input Activity : $10. @;
+      output;
+    end;
+run;
+proc print data=sasuser.group1;
+run;
+
+*create one obs for each repeating field with missing data;
+data sasuser.group2;
+   infile excdata3 missover; *ignore missing values at the end of obs;
+   input ID $ Activity : $10. @;
+   Choice=0;
+   do while (activity ne '');
+   		Choice +1;
+		output;
+		input Activity: $10. @;
+   end;
+run;
+proc print data=sasuser.group2;
+run;
+
+**********************************************;
+*read hierarchical file;
+data sasuser.billing1(drop=type);
+	infile Jan98dat;
+	retain ID Name;
+	input type $1. @;
+	if Type='P' then input @3 ID $ Name $8-22.; *header records;
+	if Type='C';
+	input @3 Date mmddyy8. @12 Amount comma6.;*detail records;
+	format date mmddyy8. amount dollar7.2;
+run;
+proc print data=sasuser.billing1;
+run;
+
+*read hierarchical file and create one obs per header record;
+data sasuser.billing2 (drop=type amount);
+	infile Jan98dat end=last; *label last obs;
+	retain ID Name;
+	input type $1. @;
+	if type='P' then do; *header;
+		if _n_ >1 then output;
+		Totalcost=0;
+		input @3 ID $ @8 Name $15.;
+	end;
+	else if type='C' then do;
+		input @12 Amount comma6.;
+		Totalcost + Amount; *sum amount as totalcost;
+	end;
+	if last then output;*output for the last obs;
+run;
+proc print data=sasuser.billing2;
+run;
+
+****************************************************;
+*read fields with varying lengths;
+data sasuser.scores1;
+	infile satdata1 length=reclen;
+	input SSN $11. @;
+	namelen=reclen-14;
+	input LastName $varying10. namelen 
+	      SATscore;
+run;
+proc print data=sasuser.scores1(drop=namelen);
+run;
+	      
+*read variable-length record with varying number of fiels;
+data sasuser.scores2;
+	infile satdata2 length=reclen;
+	input SSN $11. @;
+	do index=12 to reclen by 12;
+		input Date : date. SATscore @;
+		output;
+	end;
+run;
+proc print data=sasuser.scores2(drop=index);
+run;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
