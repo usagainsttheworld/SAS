@@ -296,3 +296,42 @@ title 'Flight and Crew Schedule';
 					and f.date=m.date
 			order by 1,2,4,3;
 quit;
+title;
+
+/****************************************************/
+*combining tables vertically;
+*EXCEPT;
+proc sql;
+	select empid, lastname, division, location
+		from sasuser.empdata 
+	except 
+	select empid, lastname, division, location
+		from sasuser.allemps;
+quit;
+
+*Intersect;
+proc sql;
+	select empid, lastname, division, location
+		from sasuser.empdata
+	intersect
+	select empid, lastname, division, location
+		from sasuser.allemps;
+quit;
+
+*Outer union to concatenate tables;
+proc sql;
+	select * from sasuser.therapy1999
+	union 
+	select * from sasuser.therapy2000;
+quit;
+
+proc sql;
+	select * from sasuser.therapy1999
+	outer union corr
+	select * from sasuser.therapy2000;
+quit;
+
+
+
+
+
