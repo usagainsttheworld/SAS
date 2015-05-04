@@ -213,3 +213,86 @@ title;
  where clause before group by
  having clause after group by;
 
+/*****************************************************/
+*inner join;
+proc sql;
+	select r.student_name, student_company,
+	city_state, course_number, paid
+		from sasuser.register r, sasuser.students s
+		where r.student_name=s.student_name;
+quit;
+
+*date transform using 'ddMMMYYYY'd, 'calculated' keyword in where clause;
+proc sql;
+	title 'Employees with more than 20 years of service';
+	select lastname, firstname, jobcode, dateofhire, 
+			int(('01jan2001'd-dateofhire)/365.25) as Years
+		from sasuser.staffmaster s, sasuser.payrollmaster p
+		where s.empid=p.empid 
+			and calculated Years >20
+		order by lastname;
+quit;
+	
+proc sql;
+	title 'Employees with more than 20 years of service';
+	select jobcode, count(s.empid) as Employees
+		from sasuser.staffmaster s, sasuser.payrollmaster p
+		where s.empid=p.empid 
+			and int(('01jan2001'd-dateofhire)/365.25) >20
+		group by jobcode;
+		order by jobcode;
+quit;
+title;
+
+*left join, 'f.*', ;
+proc sql;
+title 'All Scheduled Employees';
+title2 'and Any Payroll Changes';
+	select f.*, jobcode, salary as NewSalary
+		from sasuser.flightschedule f 
+		left join 
+		sasuser.payrollchanges p
+		on f.empid=p.empid
+	order by jobcode;
+quit;
+
+*right join, on'...and...';
+proc sql;
+title 'All Employees with Payroll Changes';
+title2 'and Any Flight 622 Assignments';
+	select p.empid, jobcode, salary as NewSalary,
+			flightnumber, date as Flightdate
+		from sasuser.flightschedule f 
+		right join 
+		sasuser.payrollchanges p
+		on f.empid=p.empid and flightnumber = '622'
+	order by p.empid;
+quit;
+
+*full join is diffrent than join;
+proc sql;
+title 'All Employees with Payroll Changes';
+title2 'Their Flight Assignments (if any)';
+title3 'and all Scheduled Flights';
+	select p.empid, jobcode, salary as NewSalary,
+			flightnumber, date as Flightdate
+		from sasuser.flightschedule f 
+		full join 
+		sasuser.payrollchanges p
+		on f.empid=p.empid 
+	order by 4;
+quit;
+title;
+
+*Combine three tables, all common col has to be equare;
+proc sql outobs=20;
+title 'Flight and Crew Schedule';
+	select f.FlightNumber as FltNum, f.date, 
+			s.firstname, s.lastname, s.empid,
+			m.departuretime as DepTime, m.destination as Dest
+			from sasuser.staffmaster s, sasuser.flightschedule f,
+				sasuser.marchflights m
+			where s.empid=f.empid and f.flightnumber=m.flightnumber
+					and f.date=m.date
+			order by 1,2,4,3;
+quit;
