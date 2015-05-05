@@ -545,3 +545,66 @@ quit;
 proc sql;
 	drop view sasuser.mechview;
 quit;
+
+/*************************************************/
+*managing processing using PROC SQL;
+*Prevents PROC SQL from taking more than 10 rows from 
+ any single source as input;
+proc sql inobs=10;
+   select ffid, name, pointsused
+      from sasuser.frequentflyers
+      where membertype='GOLD' and pointsused>0
+      order by pointsused;
+quit;
+
+*Add an option to specify that the output contains 
+  a column with row numbers;
+proc sql number;
+   select flightnumber, date, destination,
+          sum(boarded, transferred, nonrevenue)
+          as Total
+      from sasuser.marchflights
+      where destination="LAX";
+quit;
+
+*Compare the timing information for two queries;
+proc sql stimer;
+   select empid, jobcode, dateofbirth
+      from sasuser.payrollmaster
+      where jobcode in ('FA1','FA2')
+            and dateofbirth < any          
+               (select dateofbirth
+                   from sasuser.payrollmaster
+                   where jobcode='FA3');
+   select empid, jobcode, dateofbirth      
+      from sasuser.payrollmaster
+      where jobcode in ('FA1','FA2')
+            and dateofbirth < all
+               (select dateofbirth
+                   from sasuser.payrollmaster
+                   where jobcode='FA3');   
+quit;
+
+*Reset PROC SQL options without re-invoking the SQL procedure;
+proc sql inobs=10;   
+   select lastname, firstname, state     
+      from sasuser.staffmaster    
+      where state='NY';
+   reset inobs=number;
+   select lastname, firstname, state
+      from sasuser.staffmaster
+      where state='CT';
+   quit;
+
+*Use a Dictionary table to display information about the 
+   tables stored in the Sasuser library;
+proc sql;
+	describe table dictionary.columns;
+quit;
+proc sql;
+	select memname, varnum
+		from dictionary.columns
+		where libname='SASUSER'
+			and name='JobCode';
+quit;
+
