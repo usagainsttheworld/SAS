@@ -331,7 +331,130 @@ proc sql;
 	select * from sasuser.therapy2000;
 quit;
 
+/*****************************************************/
+*Insert raw data into a table;
+proc sql;
+	insert into work.production(title, pages)
+		values('Train Your Goldfish', 555);
 
+*insert rows of data, and join the temporary table with the existing table;
+proc sql;
+	create table work.awards
+				(PtsReqd num label='Points Required',
+				Rank num format=3., 
+				Award cha(25));
+quit;
+proc sql;
+	insert into work.awards (PtsReqd, Rank, Award)
+		values(2000, 1, 'free night in hotel')
+		values(10000, 2, '50% discount on flight')
+		values(20000, 3, 'free domestic flight')
+		values(40000, 4, 'free international flight');
+quit;		
+proc sql;
+	select *
+		from work.awards;
+quit;
+proc sql;
+title 'Awards for AZ Frequent Flyers';
+	select ffid, name, 
+			PointsEarned-PointsUsed as availablePoints,
+			Award
+		from work.awards, sasuser.frequentflyers
+		where calculated availablepoints >=ptsreqd
+			and state='AZ'
+		order by 1;
+quit;
 
+*integrity constraints, undo_policy=option;
+proc sql;
+	create table work.campers
+	(CampID num label='Camper ID',
+		FName Char(10),
+		LName Char(15),
+		DOB num format=date9.,
+		constraint unique_id unique(campid));
+quit;
+*display information about the table's integrity constraints;
+Proc sql; 
+	describe table constraints work.campers;
+quit;
+*load the following rows of data into the table;
+* when the same rows are submitted for insertion into the table, 
+PROC SQL will insert the rows that meet the constraint 
+and skip any rows that do not;
+proc sql undo_policy=none;
+   insert into work.campers
+       set campid=1001,fname='Mara',
+           lname='Tolerud',dob='17JUL1993'd
+       set campid=1002,fname='Kino',
+           lname='Parks',dob='22SEP1995'd
+       set campid=1002,fname='Adele',
+           lname='Ruiz',dob='01DEC1992'd;
+quit;
+proc sql;
+	select *
+	from work.campers;
+quit;
 
+*create table from existing table using 'as', 
+ update rows using 'set''case';
+proc sql;
+	create table work.newadmit2 as
+		select id, name, sex, age, weight, actlevel
+			from sasuser.newadmit;
+	select *
+		from work.newadmit2;
+quit;
+*increase the values for Weight by 2% in all of 
+  the rows in Work.Newadmit2;
+proc sql;
+	update work.newadmit2 
+		set weight=weight *1.02;
+	select *
+		from work.newadmit2;
+quit;
+proc sql;
+	update work.newadmit2
+		set actlevel=
+			case actlevel
+				when 'LOW' then '1'
+				when 'MOD' then '2'
+				when 'HIGH' then '3'
+			end;
+	select *
+		from work.newadmit2;
+quit;
 
+* creates a new table by copying 
+ the rows of existing table;
+proc sql;
+	create table work.newadmit3 as
+		select *
+			from sasuser.newadmit;
+	select *
+		from work.newadmit3;
+quit;
+* creates a new table by copying only the 
+  column structure of existing table;
+proc sql;
+   create table work.newadmit3
+      like sasuser.newadmit;
+   describe table work.newadmit3;
+quit;
+
+*alter and drop col in the talbe;
+proc sql;
+	alter table work.newadmit3
+		drop Height,Weight,Actlevel
+		modify Fee label='Admit Fee'
+		add Pulse num format=3.;
+	describe table work.newadmit3;
+quit;
+ *drop the table Work.Newadmit3;
+proc sql;
+	drop table work.newadmit3;
+quit;
+
+/******************************************/
+*managing indexes using proc sql;
