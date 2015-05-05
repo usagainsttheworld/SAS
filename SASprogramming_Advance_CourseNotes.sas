@@ -458,3 +458,90 @@ quit;
 
 /******************************************/
 *managing indexes using proc sql;
+*creat table by copying all col and rows;
+proc sql;
+	create table work.staffmaster as
+		select *
+			from sasuser.staffmaster;
+quit;
+*create a simple unique index on tabel;
+proc sql;
+	create unique index Lastname
+		on work.staffmaster(Lastname);
+quit;
+*create a simple non-unique index;
+proc sql;
+	create index Lastname
+		on work.staffmaster(Lastname);
+quit;
+* display index specifications ;
+proc sql;
+	describe table work.staffmaster;
+quit;
+
+*monitor the use of index;
+option msglevel=i;
+proc sql;
+   select *
+      from work.staffmaster
+      where lastname contains 'AR';
+quit;
+*process query without using the index;
+proc sql;
+   select *
+      from work.staffmaster (idxwhere=no)
+      where lastname contains 'AR';
+quit;
+*set SAS log displays notes, warnings, and error messages only;
+option msglevel=n;
+*drop index;
+proc sql;
+	drop index Lastname
+		from work.staffmaster;
+quit;
+
+/********************************************/
+*create proc sql view;
+proc sql;
+	select empid, lastname, 
+			firstname, phonenumber 
+		from sasuser.staffmaster
+		where city ='NEW YORK';
+quit;
+* save the query as a PROC SQL view;
+proc sql;
+	create view sasuser.myview as
+		select empid, lastname, 
+			firstname, phonenumber 
+		from sasuser.staffmaster
+		where city ='NEW YORK';
+quit;
+*displays all columns from Sasuser.Myview;
+proc sql;
+	select *
+		from sasuser.myview;
+quit;
+proc sql;
+	describe view sasuser.myview;
+quit;
+
+*update and drop a proc sql view;
+proc sql;
+   create view sasuser.mechview as 
+      select id, lastname, firstname, 
+             int((today()-hired)/365.25)
+             as YearsEmployed, city
+         from mechanics;
+quit; 
+*updated view includes only the rows where City is equal to NEW YORK;
+proc sql;
+	delete from sasuser.mechview
+		where city ne 'NEW YORK';
+quit;
+proc sql;
+	select *
+		from sasuser.mechview;
+quit;
+proc sql;
+	drop view sasuser.mechview;
+quit;
