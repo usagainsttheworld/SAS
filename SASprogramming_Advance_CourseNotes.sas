@@ -608,3 +608,96 @@ proc sql;
 			and name='JobCode';
 quit;
 
+/***********************************/
+*Macro Variables;
+*Use and display automatic macro variables;
+proc print data=sasuser.all noobs label uniform;
+   where student_name contains 'Babbit';
+   by student_name student_company;
+   var course_title begin_date location teacher;
+   title 'Courses Taken by Selected Students:';
+   title2 'Those with Babbit in Their Name';
+   footnote "Report Created on &sysdate9";
+run;
+
+*Define and use macro variables;
+footnote;
+%let pattern = Ba;
+proc print data=sasuser.all noobs label uniform;
+   where student_name contains "&pattern";
+   by student_name student_company;
+   var course_title begin_date location teacher;
+   title 'Courses Taken by Selected Students:';
+   title2 "Those with &pattern in Their Name";
+run;
+
+*Display resolved macro variables in the SAS log;
+options symbolgen;
+%let num=8;
+proc print data=sasuser.all label noobs n;
+   where course_number = #
+   var student_name Student_Company;
+   title "Enrollment for Course &num";
+run;
+
+options nosymbolgen;
+%let num=8;
+proc print data=sasuser.all label noobs n;
+   where course_number = #
+   var student_name Student_Company;
+   title "Enrollment for Course &num";
+   %put the value of macro var num is: &num;
+run;
+
+
+*use macro quoting funciton;
+%let pattern=%str(O%'Savio); * %STR (%');
+proc print data=sasuser.all noobs label uniform;
+   where student_name contains "&pattern"; *"";
+   by student_name student_company;
+   var course_title begin_date location teacher;
+   title 'Courses Taken by Selected Students:';
+   title2 "Those with &pattern in Their Name";*"";
+run;
+
+*macro charactor function;
+%let dsn=SASUSER.SCHEDULE;
+title;
+proc sort data=&dsn out=work.sorted;
+   by course_number begin_date;
+run;
+title "Variables in &dsn";
+proc sql;
+   select name, type, length
+      from dictionary.columns
+      where libname="%upcase(%scan(&dsn,1,.))" and
+            memname="%upcase(%scan(&dsn,2,.))";
+quit;
+
+
+%let dsn=&syslast;
+title;
+proc sort data=&dsn out=work.sorted;
+   by course_number begin_date;
+run;
+title "Variables in &dsn";
+proc sql;
+   select name, type, length
+      from dictionary.columns
+      where libname="%upcase(%scan(&dsn,1,.))" and
+            memname="%upcase(%scan(&dsn,2,.))";
+quit;
+
+*;
+title;
+%let table1 = schedule;
+%let table2 = register;
+%let joinvar = course_number;
+%let freqvar = location;
+proc sql;
+   select &freqvar,n(&freqvar) label='Count'
+      from sasuser.&table1,sasuser.&table2
+      where &table1..&joinvar=
+            &table2..&joinvar
+      group by &freqvar;
+quit;
