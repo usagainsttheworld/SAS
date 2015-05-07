@@ -771,3 +771,99 @@ proc print data=sasuser.all noobs n;
    title1 "Roster for Course &num";
    title2 "Beginning on &&begin&num";
 run;
+
+/*******************************************/
+*Creating and Using Macro Program(Macros);
+%macro prtlast;
+	proc print data=&syslast (obs=5);
+	title " Listing of &syslast data set";
+	run;
+%mend;
+proc sort data=sasuser.courses out=courses;
+     by course_code;
+run;
+%prtlast
+    
+proc sort data=sasuser.schedule out=schedule;
+     by begin_date;
+run;
+%prtlast
+
+*Define and execute a macro;
+options mcompilenote=all; *to see is compile with no error in log;
+%macro Printnum;
+proc print data=sasuser.all label noobs n;
+   where course_number=&num;
+   var student_name student_company;
+   title "Enrollment for Course &num";
+run;
+%mend;
+%let num = 6;
+%Printnum
+
+*Define and execute a macro, use debugging options;
+%macro Printnum;
+%*to put comments here;
+proc print data=sasuser.all label noobs n;
+   	where course_number=&num;
+   	var student_name student_company;
+   	title "Enrollment for Course &num";
+run;
+options mprint mlogic;
+%mend;
+%let num=8;
+%Printnum
+
+%macro prtstus(crsnum);
+	proc print data=sasuser.all;
+		var student_name;
+		where course_number=&crsnum;
+	run;
+%mend;
+%prtstus(9)
+
+*macro with positional parameters;
+%macro Attend1(opts, start, stop);
+%let start=%upcase(&start);
+%let stop=%upcase(&stop);
+proc freq data=sasuser.all;
+   where begin_date between "&start"d and "&stop"d;
+   table location / &opts;
+   title1 "Enrollment from &start to &stop";
+run;
+%mend;
+*specify the appropriate system options to display the source code 
+that is received by the SAS compiler and to track the macro's execution;
+options mprint mlogic;
+%Attend1(nocum, 01jan2001, 31dec2001)
+*specifying a null value for opts;
+%Attend1(, 01jan2001, 31dec2001)
+
+*macro with keyword parameters;
+%macro Attend2(opts=, start=01jan2001, stop=31dec2001);
+%let start=%upcase(&start);
+%let stop=%upcase(&stop);
+proc freq data=sasuser.all;
+   where begin_date between "&start"d and "&stop"d;
+   table location / &opts;
+   title1 "Enrollment from &start to &stop";
+run;
+%mend;
+options mprint mlogic;
+*specifies nocum as a value for opts and that specifies 
+default values for both start and stop;
+%Attend2(opts=nocum)
+%Attend2(opts=nocum nopercent, stop=30jun2001)
+
+*macro with mixed parameter;
+%macro Attend3(opts, start=01jan2001,stop=31dec2001);
+%let start=%upcase(&start);
+%let stop=%upcase(&stop);
+proc freq data=sasuser.all;
+   where begin_date between "&start"d and "&stop"d;
+   table location / &opts;
+   title1 "Enrollment from &start to &stop";
+run;
+%mend;
+%Attend3(nocum)
+%Attend3(,start=01oct2001)
