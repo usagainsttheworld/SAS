@@ -748,6 +748,26 @@ run;
 
 *sas var=Symget(macro var);
 data unpaid;
-	select *
-		from sasuser.register
-	Begin=sysget(&start)
+	set sasuser.register;
+	where paid='N';
+	Begin=symget('start'||left(course_number));
+run;
+title;
+proc print data=unpaid;
+run;
+
+*creat multiple macro var with SQL procedure;
+proc sql;
+	select begin_date format=mmddyy10.
+		into :begin1-:begin18
+		from sasuser.schedule;
+quit;
+%put _user_;
+
+%let num=4;
+proc print data=sasuser.all noobs n;
+   where course_number=&num;
+   var student_name student_company;
+   title1 "Roster for Course &num";
+   title2 "Beginning on &&begin&num";
+run;
