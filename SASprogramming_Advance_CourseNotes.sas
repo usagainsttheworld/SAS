@@ -701,3 +701,53 @@ proc sql;
             &table2..&joinvar
       group by &freqvar;
 quit;
+
+/******************************************/
+*Macro Variables at execution time;
+*SYMPUT routine;
+data practice;
+  set sasuser.schedule;
+  where location = "Boston";
+  call symput ('same_val', 'Hallis, Dr.George');
+  call symput ('current_val', Teacher);
+run;
+  %put same is &same_val;
+  %put current is &current_val;
+
+*call symput, put;
+options nodate symbolgen;
+data _null_;
+	call symput('date', put(today(), mmddyy10.));
+title "Courses Offered of &date";
+proc print data=sasuser.courses;
+run;
+	
+options nodate symbolgen;
+data _null_;
+	call symput('date', 
+			trim(left(put(today(), worddate20.))));
+title "Courses Offered of &date";
+proc print data=sasuser.courses;
+run;
+
+*multiple macro variables, &&macro1&macro2);
+data _null_;
+	set sasuser.schedule;
+	call symput('start'||trim(left(course_number)),
+			put(begin_date, mmddyy10.));
+run;
+%put _user_;
+
+%let crs=9;
+proc print data=sasuser.all noobs n;
+   where course_number=&crs;
+   var student_name student_company;
+   title 
+     "Roster for Course &crs Beginning on &&start&crs";
+run;
+
+*sas var=Symget(macro var);
+data unpaid;
+	select *
+		from sasuser.register
+	Begin=sysget(&start)
