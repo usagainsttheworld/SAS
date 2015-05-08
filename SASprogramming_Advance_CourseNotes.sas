@@ -867,3 +867,92 @@ run;
 %mend;
 %Attend3(nocum)
 %Attend3(,start=01oct2001)
+
+*Macro nest to create multiple local sysbol tables;
+%macro datemvar (frmt=date9.);
+	data _null_; *there is a space btw data and _null_!!;
+		call symput('today',(put(today(),&frmt)));
+	run;
+%mend datemvar;
+
+%macro prtrost(num=1);
+	%local today;
+	%datemvar(frmt=mmddyy10.)
+	proc print data=sasuser.all label noobs n;
+		where course_number=&num;
+		var student_name student_company city_state;
+		title1 "Course &num Enrollment
+			as of &today";
+	run;
+%mend prtrost;
+
+options mprintnest mlogicnest;
+%prtrost(num=8)
+
+*macro with conditionally process;
+data current(drop=diff);
+   set sasuser.all;
+   if year(begin_date)=2001;
+      diff=year(today())-year(begin_date);
+      begin_date=begin_date+(365*diff);
+run; 
+
+%macro reports;
+	proc sort data=work.current out=thisweek;
+	   where put(begin_date,monyy7.)=
+	         "%substr(&sysdate9,3,7)"
+	         and begin_date ge "&sysdate9"d;
+	   by begin_date location course_title;
+	run;
+	proc print data=thisweek noobs n;
+		%if &sysday=Friday %then %do;
+			proc sort data=work.current out=thisweek;
+			   where put(begin_date,monyy7.)=
+			         "%substr(&sysdate9,3,7)"
+			         and begin_date le "&sysdate9"d;
+			   by begin_date location course_title;
+			run;
+			proc means data=thisweek maxdec=0 sum;
+			   by begin_date location course_title;
+			   var fee;
+			   class paid;
+			   title "Revenue for Courses as of &sysdate9";
+			run;
+		%end;
+	    by begin_date location course_title;
+	    var student_name student_company paid;
+	    title "Course Registration as of &sysdate";
+	run;
+%mend;	
+options mprint mlogic;
+%reports
+
+*macro loop;
+%macro printlib(lib=SASUSER,obs=5);
+	%let lib=%upcase(&lib);
+	data _null_;
+		set sashelp.vstabvw end=final;
+		where libname="&lib";
+		call symput('dsname'||left(_n_),trim(memname));
+		if final then call symput('totaldsn',_n_);
+	run;
+	%local i;
+	%do i=1 %to &totaldsn;
+	  	proc print data = &lib..&&dsname&i (obs=&obs);
+		title "Listing of &lib..&&dsname&i Data set"; *has to be "";
+		run;
+	%end;
+%mend printlib;
+options mprint;
+%printlib(lib=work, obs=5)
+*eval and %sysevalf;
+%let sal1=25000;
+%let sal2=27000;
+%let saldiff=%eval(&sal2-&sal1);
+%put The salary difference is &saldiff;
+
+%let sal1=25000;
+%let sal2=27050.45;
+%let saldiff=%sysevalf(&sal2-&sal1); * handle with numeric with period;
+%put The salary difference is &saldiff;
+
