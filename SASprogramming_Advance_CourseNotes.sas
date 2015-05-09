@@ -956,3 +956,66 @@ options mprint;
 %let saldiff=%sysevalf(&sal2-&sal1); * handle with numeric with period;
 %put The salary difference is &saldiff;
 
+/****************************************/
+*Storing Macro Programs;
+*1.%include!!!!!!;
+%macro prtlast;
+   %if &syslast ne _NULL_ %then %do;
+      proc print data=&syslast(obs=5);
+         title "Listing of &syslast data set";
+      run;
+   %end;
+   %else
+      %put No data set has been created yet.;
+%mend;
+*save the above program as an external file named prtlast.sas;
+proc sort data=sasuser.courses out=bydays;
+	by days;
+run;
+%include 'C:\Users\mac\Desktop\SAS\prtlast.sas';
+%prtlast
+
+*2.save macro as catalog SOURCE entry;
+%macro sortlast(sortby);
+   %if &syslast ne _NULL_ %then %do;
+      proc sort data=&syslast out=sorted;
+         by &sortby;
+      run;
+   %end;
+   %else
+      %put No data set has been created yet.;
+%mend;
+*save the above program in SAS catalog sasuser.mymacs as source entry;
+filename sortlast catalog 'sasuser.mymacs.sortlast.source';
+%include sortlast;
+data course1;
+	set sasuser.register;
+	where course_number=1;
+run;
+%sortlast(paid)
+proc print data=work.sorted;
+run;
+*display the contents of the Sasuser.Mymacs catalog;
+proc catalog cat=sasuser.mymacs;
+	contents;
+quit;
+
+*3.autocall macros from SAS catalog;
+options mautosource mlogic; *must specify mautosource mlogic!!;
+proc print data=sasuser.courses;
+   title "this title is in %lowcase(LOWERCASE)";
+run;
+
+*4.stored compiled macro;
+options mstored sasmstore=sasuser; *must specify mstored sasmstore;
+%macro printit(dataset)/store;
+   proc print data=&dataset(obs=5);
+      title "Listing of &dataset data set";
+   run;
+%mend;
+proc catalog catalog=sasuser.sasmacr;
+	contents;
+quit;
+*call the Printit macro ;
+option mastored sasmstore=sasuser;
+%printit(sasuser.courses)
