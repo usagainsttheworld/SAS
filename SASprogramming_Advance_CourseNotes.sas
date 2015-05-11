@@ -1019,3 +1019,123 @@ quit;
 *call the Printit macro ;
 option mastored sasmstore=sasuser;
 %printit(sasuser.courses)
+
+/*********************************************************/
+/*Creating Samples and Index*/
+*systematic samle from set with known number of obs;
+data Samp1;
+	do pickit=1 to 153 by 12;
+		set sasuser.sale2000 point=pickit;
+		output;
+	end;
+	stop;
+run;
+
+proc print data=work.samp1;
+run;
+
+*systematic sample from set with unkown number of obs;
+data Samp2;
+	do pickit=1 to totobs by 10;
+		set sasuser.expenses point=pickit nobs=totobs;
+		output;
+	end;
+	stop;
+run;
+
+proc print data=work.samp2;
+run;
+
+*random sample with replacement;
+data rsamp1 (drop = i);
+	do i=1 to 25;
+		pickit=ceil(ranuni(0)*totobs);
+		set sasuser.salcomps point=pickit nobs=totobs;
+		output;
+	end;
+	stop;
+run;
+proc print data=work.rsamp1;
+run;
+
+*Revise the program so that the sample observations are 
+output to two different temporary data sets rather than 
+just one. For each sample observation;
+data over30 (drop=i) upto30 (drop=i);
+	do i=1 to 25;
+		pickit=ceil(ranuni(0)*totobs);
+		set sasuser.salcomps point=pickit nobs=totobs;
+		if salary > 30000 then output over30;
+		else output upto30;
+	end;
+	stop;
+run;
+proc print data=over30;
+title 'Salaries over $30,000';
+run;
+proc print data=upto30;
+title 'Salaries up to $30,000';
+run;
+title;
+
+*create random sample of set without replacement;
+data rsamp2(drop=obsleft sampsize);
+	sampsize=25;
+	obsleft=totobs;
+	do while (sampsize>0);
+		pickit+1;
+		if ranuni(0) < sampsize/obsleft then do;
+			set sasuser.salcomps point=pickit
+				nobs=totobs;
+			output;
+			sampsize=sampsize-1;
+		end;
+		obsleft=obsleft-1;
+	end;
+	stop;
+run;
+proc print data=work.rsamp2;
+run;
+
+*create an index;
+options msglevel=i;
+data sasuser.flighttimes(index=(date Fltdte=(flight date)/unique));
+	infile flighttm dlm=",";
+	input flight $ depart date;
+	format Date date9.;
+run;
+
+*use proc dataset to create an index;
+proc datasets library=sasuser nolist;
+	modify empdata;
+	index create hiredate;
+	index delete hiredate;
+	index create Name=(lastname firstname); *concatenation of ...;
+quit;
+
+*create index using Proc sql;
+proc sql;
+	drop index date from sasuser.expenses;
+	create index flightdate
+		on sasuser.expenses(flightid, date);
+quit;
+
+
+*view a list of index;
+proc contents data=sasuser.flighttimes;
+run;
+*copies the Sasuser.Flighttimes data set into the Work library;
+proc datasets library=sasuser nolist;
+	copy out=work;
+	select flighttimes;
+quit;
+*renames Work.Flighttimes to Work.Departures;
+proc datasets library= work nolist;
+	change flighttimes=departures;
+quit;
+*lists the contents of the Work.Departures data set;
+proc datasets nolist;
+	contents data=work.departures;
+quit;
+
+/*********************************************/
