@@ -1454,3 +1454,238 @@ run;
 proc format lib=sasuser fmtlib;
    select $jcodes;
 run;
+
+/*****************************************/
+*modifying SAS data sets and tracking changes;
+*update all obs;
+proc copy in=sasuser out=work;
+   select empdata;
+run;
+proc print data=empdata (obs=5);
+run;
+* give all the employees in the Work.Empdata 
+SAS data set a 5% salary increase;
+data empdata;
+	modify empdata;
+	salary=salary*1.05;
+run;
+proc print data=empdata (obs=5);
+run;
+
+*use transaction data set to modify data set;
+proc copy in=sasuser out=work;
+   select empdata;
+run;
+proc print data=empdata (obs=15);
+run;
+data empdata;
+	modify empdata sasuser.empdatu;
+	by empid;
+run;
+proc print data=empdata (obs=15);
+run;
+
+*modify data set with missing values;
+data missing;
+   input EmpID $ Salary;
+   datalines;
+   E00002 .
+   E00005 25000
+   ;
+run;
+data empdata;
+   modify empdata missing
+          updatemode=nomissingcheck; *missing values in the transaction 
+		      data set replace values in the master data set;
+   by empid;
+run;
+proc print data=work.empdata(obs=5);
+run;
+
+*use transaction data set to modify a data set;
+proc copy in=sasuser out=work;
+   select empdata;
+run;
+proc print data=empdata (obs=5);
+run;
+data empdata;
+   set sasuser.empdatu2 
+       (rename=(lastname=NewLastName
+                location=NewLocation
+                salary=NewSalary));
+   modify empdata key=empiD;
+   lastname=newlastname;
+   location=newlocation;
+   salary=newsalary;
+run;
+proc print data=empdata (obs=5);
+run;
+
+*use_IORC_and %	sysrc;
+proc copy in=sasuser out=work;
+   select empdata;
+run;
+data sasuser.newsalary;
+   input EmpId $ Increase;
+   datalines;
+   E00001 3250
+   E00002 3500
+   E00300 6250
+   ;
+run;
+
+data empdata;
+   set sasuser.newsalary; 
+   modify empdata key=empid;
+   *For matching values;
+   if _iorc_=%sysrc(_sok) then 
+      do;
+      salary=salary+increase;
+      replace;
+      end;
+   else do;
+   put '***Incorrect Employee Number***';
+   _error_=0;
+   end;
+run;
+proc print data=empdata (obs=5);
+run;
+
+*Add integrity constraints to data set;
+proc copy in=sasuser out=work;
+   select empdata;
+run;
+proc datasets nolist;
+   modify empdata;
+   ic create PKEmpID=Primary Key (EmpID)
+      message='Please supply an employee ID 
+               number.';
+   ic create Lname=Not Null (LastName)
+      message='Please supply a last name.';
+quit;
+
+*integrity constraints;
+proc datasets nolist;
+   contents data=empdata;
+quit;
+proc datasets nolist;
+   modify empdata;
+   ic delete pkempid;
+   ic delete lname;
+quit;
+
+*Initiate an audit trail;
+proc copy in=sasuser out=work;
+   select pilotemp;
+run;
+proc datasets nolist;
+   audit pilotemp;
+   initiate;
+quit;
+data pilotemp;
+   modify pilotemp;
+   salary=salary*1.2;
+run;
+proc print data=pilotemp(type=audit);
+run;
+
+*create customized audit trail;
+proc copy in=sasuser out=work;
+   select pilotemp;
+run;
+data promotion;
+   length EmpID $ 6;
+   input EmpID $ JobCode $ Increase;
+   datalines;
+   E00031 Pilot4 2400
+   E00055 Pilot4 5000
+   ;
+run;
+proc datasets nolist;
+   audit pilotemp;
+   initiate;
+   user_var User $20 label='Who made the change'
+      		Reason $20 label='Why the change was made';
+   log before_image=no;
+quit;
+data pilotemp;
+   modify pilotemp promotion;
+   by empid;
+   salary=salary+increase;
+   user="My Name";
+   reason="Raise";
+run;
+proc print data=pilotemp(type=audit);
+run;
+
+*Suspend, resume, and terminate the audit trail;
+* suspend the audit trail;
+proc datasets nolist;
+   audit pilotemp;
+   suspend;
+quit;
+*modify the data set;
+data pilotemp;
+   modify pilotemp;
+   location='Honolulu';
+run;
+*resume the audit trail;
+proc datasets nolist;
+   audit pilotemp;
+   resume;
+quit;
+*modify data;
+data pilotemp; 
+   modify pilotemp promotion;
+   by empid; 
+   salary=salary+increase;
+   user="My Name";
+   reason="Year 2 Raise";
+run;
+*view the audit file;
+proc print data=pilotemp(type=audit);
+run;
+*terminate the audit trail;
+proc datasets nolist;
+   audit pilotemp;
+   terminate;
+quit;
+
+*generation data set;
+proc copy in=sasuser out=work;
+   select jobhstry;
+run;
+*modify the SAS data set Work.Jobhstry 
+to save a maximum of three generations;
+proc datasets nolist;
+   modify jobhstry (genmax=3);
+quit;
+data jobhstry;
+   set jobhstry sasuser.y200061;
+run;
+data jobhstry;
+   set jobhstry sasuser.y200062;
+run;
+data jobhstry;
+   set jobhstry sasuser.y200061;
+run;
+data jobhstry;
+   set jobhstry sasuser.y200062;
+run;
+
+*generation data sets;
+proc print data=sasuser.jobhstry;
+run;
+proc print data=work.jobhstry(gennum=0);
+run;
+
+proc datasets nolist;
+   contents data=jobhstry(gennum=2);
+quit;
+
+proc datasets nolist;
+   delete jobhstry(gennum=all);
+quit;
+
+proc datasets;
+quit;
