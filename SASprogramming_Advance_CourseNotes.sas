@@ -1139,3 +1139,174 @@ proc datasets nolist;
 quit;
 
 /*********************************************/
+filename routes (' C:\Users\mac\Documents\My SAS Files\9.3
+\route1.dat'
+   ' C:\Users\mac\Documents\My SAS Files\9.3
+\route2.dat'
+   ' C:\Users\mac\Documents\My SAS Files\9.3
+\route3.dat');
+data work.newroutes;
+infile routes;
+input RouteID $7. Origin $3. Dest $3.
+      Distance 5. Fare1stclass 4. FareBusiness 4.
+      FareCoach 4. FareCargo 5.;
+run;
+proc print data=work.newroutes;
+run;
+
+*use FILEVAR= option to concatenate the raw data files Route8.dat, 
+Route9.dat, and Route10.dat;
+data work.routedata;
+   do i = 8, 9, 10;
+      nextfile="C:\Users\mac\Documents\My SAS Files\9.3"
+               !!compress("\route"!!put(i,2.)!!".dat",' ');
+      do until (lastobs);
+         infile temp filevar=nextfile end=lastobs;
+         input RouteID $7. Origin $3. Dest $3.
+               Distance 5. Fare1stclass 4.
+               FareBusiness 4. FareCoach 4.
+               FareCargo 5.;
+      output;
+      end;
+   end;
+   stop;
+run;
+
+proc print data=work.routedata;
+run;
+
+* use filevar=option and sas date function;
+data work.last2 (drop=thisyear lastyear);
+   thisyear=year(today());
+   lastyear=year(intnx('year',today(),-1));
+   do Year = thisyear, lastyear;
+      nextfile="C:\Users\mac\Documents\My SAS Files\9.3"
+         !!put(year,4.)!!".dat";
+      do until (lastobs);
+         infile temp filevar=nextfile end=lastobs
+            dlm=",";
+         input Flight $ Date : date9. Depart $;
+      output;
+      end;
+   end;
+   stop;
+run;
+proc print data=work.last2;
+run;
+
+*append data set;
+proc append base=sasuser.Y2000
+			data=sasuser.quarter4 force;
+run;
+proc print data=sasuser.y2000;
+run;
+
+/******************************************/
+*Combning data Horizontally;
+*use data step to merge three data sets;
+proc sort data=sasuser.empdata out=empdata;
+	by empid;
+run;
+proc sort data=sasuser.newsals out=newsals;
+	by empid;
+run;
+data temp1;
+	merge newsals(in=n) empdata(in=e);
+	by empid;
+	if n and e;
+run;
+proc sort data=temp1;
+	by jobcode;
+run;
+proc sort data=sasuser.jcodedat out=jcodedat;
+	by jobcode;
+run;
+data jobdata (keep =empid jobcode descript salary newsalary);
+	merge temp1(in=t) jcodedat(in=j);
+	by jobcode;
+	if t and j;
+run;
+proc print data=jobdata;
+run;
+
+*use Proc sql to join three data sets;
+proc sql;
+   create table jobdata2 as
+      select empdata.empid, empdata.salary, 
+             newsals.newsalary, jcodedat.jobcode, 
+             jcodedat.descript
+         from sasuser.empdata, sasuser.newsals, 
+              sasuser.jcodedat
+         where empdata.empid=newsals.empid
+               and jcodedat.jobcode=empdata.jobcode
+         order by jobcode, empid;
+quit;
+proc print data=work.jobdata;
+run;
+
+*create a summary data set;
+*Name the variable that holds this average value AvgAmt.;
+proc means data=sasuser.contrib;
+	var amount;
+	output out=work.mean mean=avgamt
+run;
+*DiffAvg should record the difference between each individual 
+contribution and the overall average contribution;
+data work.diff;
+	if _n_=1 then set mean(drop=_type_ _freq_);
+	set sasuser.contrib;
+	diffavg=round(amount-avgamt, .01);
+run;
+proc print data=work.diff;
+run;
+
+*Create a summary data set, and combine it with detail data 
+from the Sasuser.Contrib data set in one DATA step;
+data work.diff2(drop=totcont n);
+   retain avgamt;
+   if _n_=1 then do until(last);
+      set sasuser.contrib end=last;
+      totcont+amount;
+	  *Do not include missing values in AvgAmt;
+      if amount ne . then N+1;
+      if last then AvgAmt=totcont/n;
+   end;
+   set sasuser.contrib;
+   * do not include observations with a missing value ;
+   if amount ne .;
+   DiffAvg=round(amount-avgamt, .01);
+run;
+proc print data=work.diff2;
+run;
+
+*use the flight index to combine data;
+proc datasets library=sasuser;
+   modify flighttimes;
+   index create flight;
+quit;
+
+data work.newsched;
+	set sasuser.newtimes;
+	set sasuser.flighttimes key=flight;
+	newdepart=sum(timediff*60, depart); 
+	*depart is SAS time value(number of seconds since midnight;
+	format newdepart time5.;
+run;
+*revise the program to use _IORC_ to detect data errors;
+data work.newsched;
+	set sasuser.newtimes;
+	set sasuser.flighttimes key=flight;
+	if _iorc_=0 then do;
+		newdepart=sum(timediff*60, depart); 
+		output work.newsched;
+	end;
+	else do;
+		_error_=0;
+		output work.errors;
+	end;
+	format newdepart time5.;
+run;
+proc print data=work.newsched;
+run;
+proc print data=work.errors;
+run;
