@@ -1310,3 +1310,147 @@ proc print data=work.newsched;
 run;
 proc print data=work.errors;
 run;
+
+/******************************************/
+*Use lookup table to match data;
+*use a table and two-dimensional array to determine the score;
+data work.results;
+	array award {3,4}_temporary_
+		(65,55,45,35,80,70,60,50,70,60,50,40);
+	set sasuser.compete;
+	score=award{Event, finish};
+run;
+proc print data=work.results;
+run;
+
+*create array in data set;
+data work.wndchll2;
+title 'Work.Wndchll2';
+data work.wndchll2(keep = flight temp wspeed chill);
+   array wc{8,9} _temporary_; 
+   if _n_ = 1 then do i = 1 to 8; 
+      set sasuser.wchill;
+      array tmp{9} TmpNeg10 -- Temp30;
+      do j = 1 to 9;
+         wc{i,j}= tmp{j};
+      end;
+   end;
+   set sasuser.flights2;
+   row = round(wSpeed,5)/5;
+   column = (round(temp,5)/5)+3;
+   Chill = wc{row,column}; 
+run;
+proc print data = work.wndchll2;
+run;
+
+*use proc transpose;
+proc transpose data=sasuser.econtrib 
+	out=work.tcontrib
+	name=QtrNum
+	prefix=Amount;
+	by empid;
+run;
+proc print data=work.tcontrib;
+run;
+ 
+/********************************************/
+*Formatting Data;
+*create a multilabel format;
+proc format;
+   value skicond (multilabel)
+         0-4='Poor'
+         4<-7='Fair'
+         7<-10='Good'
+         10<-high='Excellent'
+         .='Check Data'
+         0-4='Lift 3 Closed'
+         4<-high='All Lifts Open';
+run;
+
+*create a picture format;
+proc format;
+   picture newdate
+           low-high='%b %Y   '(datatype=date);
+   picture cargo
+           low-70000='99,999 Below Capacity';
+run;
+proc print data=sasuser.cargo99;
+format date newdate. cargowgt cargo.;
+run;
+
+*manage format using pro catalog;
+proc format lib=work fmtlib;
+run;
+proc catalog catalog=work.formats;
+	copy out=sasuser.formats;
+	select newdate.format cargo.format;
+run;
+quit;
+
+*custom format;
+proc copy in=sasuser out=work;
+   select dnunder;
+run;
+proc format library=sasuser;
+   value $regions
+         '0000102'-'0000103'='Region1'
+         '0000104'-'0000105'='Region2'
+         '0000106'-'0000107'='Region3'
+                   '0000108'='Region4'
+                       other='Unknown';
+run;
+options fmtsearch=(sasuser);
+proc print data=sasuser.dnunder;
+	format routeid $regions.;
+run;
+*assigns the $REGIONS. format to the 
+variable RouteID in the Work.Dnunder data set;
+proc datasets nolist;
+	modify dnunder;
+	format routeid $regions.;
+quit;
+proc print data=work.dnunder;
+run;
+
+*create a custom format from a data set;
+data newjcodedat;
+   keep Start Label FmtName;
+   retain FmtName '$jcodes';
+   set sasuser.jcodedat 
+      (rename=(Jobcode=Start 
+               Descript=Label));
+run;
+proc format lib=sasuser cntlin=newjcodedat;
+run;
+proc format lib=sasuser fmtlib;
+   select $jcodes;
+run;
+
+*add codes to a custom format;
+*Submit a PROC FORMAT step that writes the $JCODES. 
+format out to the data set Sasuser.Jcodedat;
+proc format lib=sasuser.jcodedata;
+	select $jcodes;
+run;
+proc sql;
+   insert into sasuser.jcodedata
+   set fmtname='$jcodes',
+       start='TKTAG1',
+       end='TKTAG1',
+       label='Ticket Agent Grade 1'
+   set fmtname='$jcodes',
+       start='TKTAG2',
+       end='TKTAG2',
+       label='Ticket Agent Grade 2'
+   set fmtname='$jcodes',
+       start='TKTAG3', 
+       end='TKTAG3',
+       label='Ticket Agent Grade 3';
+quit;
+*saves a new version of the $JCODES. format in the Sasuser library;
+proc format lib=sasuser cntlin=sasuser.jcodedata;
+run;
+*documents the $JCODES. format;
+proc format lib=sasuser fmtlib;
+   select $jcodes;
+run;
