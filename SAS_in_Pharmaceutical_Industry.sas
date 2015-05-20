@@ -78,4 +78,23 @@ data = adverse;
 tables ae_pt;
 run;
 
-*page45;
+*Avoid hardcoding data,if has to, use improved hardcoding as follows;
+data endstudy;
+set endstudy;
+**** HARDCODE APPROVED BY DR. NAME AT SPONSOR ON 02/02/2005;
+if subjid = “101-1002” and “&sysdate” <= “01MAY2005”d then
+do;
+****If you know that an IDMC meeting will be held in April 2005 and 
+you do not want to worry about oldhardcodes, you could program them 
+so that they expire in this way;
+discterm = "Death";
+put “Subject “ subjid “hardcoded to termination reason”
+discterm;
+run;
+
+*The best way to link the serious adverse events and adverse events 
+databases is to have the clinical data management system create a 
+linking variable key for you;
+
+/******Chapter3:Importing Data******/
+
