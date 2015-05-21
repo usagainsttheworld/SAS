@@ -410,4 +410,401 @@ data labs;
 run;
 
 
-*page117;
+*Transposing data with PROC TRANSPOSE*;
+**** INPUT SAMPLE NORMALIZED SYSTOLIC BLOOD PRESSURE VALUES.
+**** SUBJECT = PATIENT NUMBER, VISIT = VISIT NUMBER,
+**** SBP = SYSTOLIC BLOOD PRESSURE.;
+data sbp;
+input subject $ visit sbp;
+datalines;
+101 1 160
+101 3 140
+101 4 130
+101 5 120
+202 1 141
+202 3 161
+202 4 171
+202 5 181
+;
+run;
+**** TRANSPOSE THE NORMALIZED SBP VALUES TO A FLAT STRUCTURE.;
+proc transpose
+	data = sbp
+	out = sbpflat
+	prefix = VISIT;
+		by subject;
+		id visit;
+		var sbp;
+run;
+proc print data=sbpflat;
+run;
+
+*Using PROC TRANSPOSE when there is a missing value*;
+**** INPUT SAMPLE NORMALIZED SYSTOLIC BLOOD PRESSURE VALUES.
+**** SUBJECT = PATIENT NUMBER, VISIT = VISIT NUMBER,
+**** SBP = SYSTOLIC BLOOD PRESSURE.;
+data sbp;
+input subject $ visit sbp;
+datalines;
+101 1 160
+101 3 140
+101 4 130
+101 5 120
+202 1 141
+202 2 151
+202 3 161
+202 4 171
+202 5 181
+;
+*notice missing visit=2;
+run;
+**** TRANSPOSE THE NORMALIZED SBP VALUES TO A FLAT STRUCTURE.;
+proc transpose
+	data = sbp
+	out = sbpflat
+	prefix = VISIT;
+		by subject;
+		id visit; *have to use ID statement to avoid error;
+		*If order is important when transposing row data to columns,
+		then the use of an ID statement in PROC TRANSPOSE is imperativ;
+		var sbp;
+run;
+
+*Let’s look at a derivation of the previous systolic blood pressure 
+transposition problem where visit 2 is always missing;
+*Often in clinical trials reporting you want to report on all visits, 
+treatments, orother expected parameters whether they are represented 
+in the actual data or not. In this case, a DATA step with arrays is a 
+better choice to transform the data.
+
+*Thansposing data with DATA Step*;
+**** INPUT SAMPLE NORMALIZED SYSTOLIC BLOOD PRESSURE VALUES.
+**** SUBJECT = PATIENT NUMBER, VISIT = VISIT NUMBER,
+**** SBP = SYSTOLIC BLOOD PRESSURE.;
+data sbp;
+input subject $ visit sbp;
+datalines;
+101 1 160
+101 3 140
+101 4 130
+101 5 120
+202 1 141
+202 3 161
+202 4 171
+202 5 181
+;
+*notice visit=2 is alwasy missing;
+run;
+**** SORT SBP VALUES BY SUBJECT.;
+proc sort
+	data = sbp;
+		by subject;
+run;
+**** TRANSPOSE THE NORMALIZED SBP VALUES TO A FLAT STRUCTURE.;
+data sbpflat;
+	set sbp;
+		by subject;
+		keep subject visit1-visit5;
+		retain visit1-visit5;
+		**** DEFINE ARRAY TO HOLD SBP VALUES FOR 5 VISITS.;
+		array sbps {5} visit1-visit5;
+		**** AT FIRST SUBJECT, INITIALIZE ARRAY TO MISSING.;
+		if first.subject then
+			do i = 1 to 5;
+				sbps{i} = .;
+			end;
+		*** AT EACH VISIT LOAD THE SBP VALUE INTO THE PROPER SLOT
+		**** IN THE ARRAY.;
+		sbps{visit} = sbp;
+		**** KEEP THE LAST OBSERVATION PER SUBJECT WITH 5 SBPS.;
+		if last.subject;
+run;
+proc print data=sbpflat;
+run;
+
+*Performing a Many-to Many Jion with PROC SQL*;
+**** INPUT SAMPLE ADVERSE EVENT DATA.
+**** SUBJECT = PATIENT NUMBER, AE_START = START DATE OF AE,
+**** AE_STOP = STOP DATE OF AE, ADVERSE_EVENT = NAME OF EVENT.;
+data aes;
+informat ae_start date9. ae_stop date9.;
+input @1 subject $3.
+		@5 ae_start date9.
+		@15 ae_stop date9.
+		@25 adverse_event $15.;
+datalines;
+101 01JAN2004 02JAN2004 Headache
+101 15JAN2004 03FEB2004 Back Pain
+102 03NOV2003 10DEC2003 Rash
+102 03JAN2004 10JAN2004 Abdominal Pain
+102 04APR2004 04APR2004 Constipation
+;
+run;
+**** INPUT SAMPLE CONCOMITANT MEDICATION DATA.
+**** SUBJECT = PATIENT NUMBER, AE_START = START DATE OF AE,
+**** AE_STOP = STOP DATE OF AE, ADVERSE_EVENT = NAME OF EVENT.;
+data conmeds;
+informat cm_start date9. cm_stop date9.;
+input @1 subject $3.
+		@5 cm_start date9.
+		@15 cm_stop date9.
+		@25 conmed $20.;
+datalines;
+101 01JAN2004 01JAN2004 Acetaminophen
+101 20DEC2003 20MAR2004 Tylenol w/ Codeine
+101 12DEC2003 12DEC2003 Sudafed
+102 07DEC2003 18DEC2003 Hydrocortisone Cream
+102 06JAN2004 08JAN2004 Simethicone
+102 09JAN2004 10MAR2004 Esomeprazole
+;
+run;
+**** MERGE/JOIN ADVERSE EVENTS WITH CONCOMITANT MEDICATIONS.
+**** KEEP MEDICATIONS THAT STARTED OR STOPPED DURING AN ADVERSE
+**** EVENT OR ENTIRELY SPANNED ACROSS AN ADVERSE EVENT.;
+proc sql;
+	create table ae_meds as
+	select a.subject, a.ae_start, a.ae_stop,
+			a.adverse_event, c.cm_start, c.cm_stop,
+			c.conmed from
+	aes as a left join conmeds as c
+	on (a.subject = c.subject) and
+		( (a.ae_start <= c.cm_start <= a.ae_stop) or
+		(a.ae_start <= c.cm_stop <= a.ae_stop) or
+		((c.cm_start < a.ae_start) and (a.ae_stop < c.cm_stop)));
+quit;
+
+*Bringing MedDRA Dictionary tables together*;
+**** SORT LOW LEVEL TERM DATA FROM MEDDRA WHERE
+**** LOW_LEVEL_TERM = LOWEST LEVEL TERM, LLT_CODE = LOWEST
+**** LEVEL TERM CODE, AND PT_CODE = PREFERRED TERM CODE.;
+proc sort
+	data = low_level_term(keep = low_level_term llt_code pt_code);
+	by pt_code;
+run;
+**** SORT PREFERRED TERM DATA FROM MEDDRA WHERE
+**** PREFERRED_TERM = PREFERRED TERM, SOC_CODE = SYSTEM
+**** ORGAN CLASS CODE, AND PT_CODE = PREFERRED TERM CODE.;
+proc sort
+	data = preferred_term(keep = preferred_term pt_code soc_code);
+		by pt_code;
+run;
+**** MERGE LOW LEVEL TERMS WITH PREFERRED TERMS KEEPING ALL LOWER
+**** LEVEL TERM RECORDS.;
+data llt_pt;
+	merge low_level_term (in = inlow) preferred_term;
+		by pt_code;
+		if inlow;
+run;
+**** SORT BODY SYSTEM DATA FROM MEDDRA WHERE
+**** SYSTEM_CLASS_TERM = SYSTEM ORGAN CLASS TERM AND SOC_CODE =
+**** SYSTEM ORGAN CLASS CODE.;
+proc sort
+	data = soc_term(keep = system_class_term soc_code);
+		by soc_code;
+run;
+**** SORT LOWER LEVEL TERM AND PREFERRED TERMS FOR MERGE WITH
+**** SYSTEM ORGAN CLASS DATA.;
+proc sort
+	data = llt_pt;
+		by soc_code;
+run;
+**** MERGE PREFERRED TERM LEVEL WITH BODY SYSTEMS;
+data meddra;
+	merge llt_pt (in = in_llt_pt) soc_term;
+		by soc_code;
+		if in_llt_pt;
+run;
+
+*Pulling perferred terms out of WHODrug*;
+proc sort
+	data = whodrug(keep = seq1 seq2 drug_name drugrecno
+			where = (seq1 = ‘01’ and seq2 = ‘001’) )
+		nodupkey;
+	by drugrecno drug_name;
+run;
+
+*using Implicit or Explicit Centuries with dates*;
+**** DISPLAY YEARCUTOFF SETTING PIVOT POINT;
+proc options option = yearcutoff;
+run;
+**** DATES DEFINED WITH IMPLICIT CENTURY;
+data _null_;
+	date = "01JAN19"d;
+	put date = date9.;
+	date = "01JAN20"d;
+	put date = date9.;
+run;
+**** DATES DEFINED WITH EXPLICIT CENTURY;
+data _null_;
+	date = "01JAN1919"d;
+	put date = date9.;
+	date = "01JAN1920"d;
+	put date = date9.;
+run;
+
+*Redefining a variable with a DATA step*;
+**** INPUT SAMPLE ADVERSE EVENT DATA WHERE SUBJECT = PATIENT ID
+**** AND ADVERSE_EVENT = ADVERSE EVENT TEXT.;
+data aes;
+input @1 subject $3.
+	@5 adverse_event $15.;
+datalines;
+101 Headache
+102 Rash
+102 Fatal MI
+102 Abdominal Pain
+102 Constipation
+;
+run;
+**** INPUT SAMPLE DEATH DATA WHERE SUBJECT = PATIENT NUMBER AND
+**** DEATH = 1 IF PATIENT DIED, 0 IF NOT.;
+data death;
+input @1 subject $3.
+		@5 death 1.;
+datalines;
+101 0
+102 0
+;
+run;
+**** FLAG EVENTS THAT RESULTED IN DEATH;
+data aes;
+	merge death(rename = (death = _death)) aes;
+		by subject;
+		**** DROP OLD DEATH VARIABLE.;
+		drop _death;
+		**** CREATE NEW DEATH VARIABLE.;
+		if adverse_event = "Fatal MI" then
+			death = 1;
+		else
+			death = _death;
+run;
+proc print;
+run;
+*!!!there is a safe and simple way to avoid the unplanned retention 
+ of variables: Do not redefine a pre-existing variable within a DATA step;
+
+*using the ROUND function with Floating-Point comparisons;
+**** FLAG LAB VALUE AS LOW OR HIGH;
+**** FLAG LAB VALUE AS LOW OR HIGH;
+data labs;
+	set labs;
+		if .z < round(lab_value,.000000001) < 3.15 then
+			hi_low_flag = "L";
+		else if round(lab_value,.000000001) > 5.5 then
+			hi_low_flag = "H";
+run;
+
+*creat a blood pressure Change-from -Baseline data set*;
+**** INPUT SAMPLE BLOOD PRESSURE VALUES WHERE
+**** SUBJECT = PATIENT NUMBER, WEEK = WEEK OF STUDY, AND
+**** TEST = SYSTOLIC (SBP) OR DIASTOLIC (DBP) BLOOD PRESSURE.;
+data bp;
+input subject $ week test $ value;
+datalines;
+101 0 DBP 160
+101 0 SBP 90
+101 1 DBP 140
+101 1 SBP 87
+101 2 DBP 130
+101 2 SBP 85
+101 3 DBP 120
+101 3 SBP 80
+202 0 DBP 141
+202 0 SBP 75
+202 1 DBP 161
+202 1 SBP 80
+202 2 DBP 171
+202 2 SBP 85
+202 3 DBP 181
+202 3 SBP 90
+;
+run;
+**** SORT DATA BY SUBJECT, TEST NAME, AND WEEK;
+proc sort
+	data = bp;
+		by subject test week;
+run;
+**** CALCULATE CHANGE FROM BASELINE SBP AND DBP VALUES.;
+data bp;
+	set bp;
+		by subject test week;
+		**** CARRY FORWARD BASELINE RESULTS.;
+		retain baseline;
+		if first.test then
+			baseline = .;
+		**** DETERMINE BASELINE OR CALCULATE CHANGES.;
+		if visit = 0 then
+			baseline = value;
+		else if visit > 0 then
+			do;
+				change = value - baseline;
+				pct_chg = ((value - baseline) /baseline )*100;
+			end;
+run;
+proc print
+	data = bp;
+run;
+
+*creating a Time-to-Event data set for seizures*;
+**** INPUT SAMPLE SEIZURE DATA WHERE
+**** SUBJECT = PATIENT NUMBER, SEIZURE = BOOLEAN FLAG
+**** INDICATING A SEIZURE AND SEIZDATE = DATE OF SEIZURE.;
+data seizure;
+informat seizdate date9.;
+format seizdate date9.;
+label subject = "Patient Number"
+		seizdate = "Date of Seizure"
+		seizure = "Seizure: 1=Yes,0=No";
+input subject $ seizure seizdate;
+datalines;
+101 1 05MAY2004
+102 0 .
+103 . .
+104 1 07JUN2004
+;
+run;
+**** INPUT SAMPLE END OF STUDY DATA WHERE
+**** SUBJECT = PATIENT NUMBER, EOSDATE = END OF STUDY DATE.;
+data eos;
+informat eosdate date9.;
+format eosdate date9.;
+label subject = "Patient Number"
+		eosdate = "End of Study Date";
+input subject $ eosdate;
+datalines;
+101 05AUG2004
+102 10AUG2004
+103 12AUG2004
+104 20AUG2004
+;
+run;
+**** INPUT SAMPLE DOSING DATA WHERE
+**** SUBJECT = PATIENT NUMBER AND DOSEDATE = DRUG DOSING DATE.;
+data dosing;
+informat dosedate date9.;
+format dosedate date9.;
+label subject = "Patient Number"
+		dosedate = "Start of Drug Therapy";
+input subject $ dosedate;
+datalines;
+101 01JAN2004
+102 03JAN2004
+103 06JAN2004
+104 09JAN2004
+;
+run;
+**** CREATE TIME TO SEIZURE DATA SET;
+data time_to_seizure;
+	merge dosing eos seizure;
+		by subject;
+		if seizure = 1 then
+			time_to_seizure = seizdate - dosedate + 1;
+		else if seizure = 0 then
+			time_to_seizure = eosdate - dosedate + 1;
+		else
+			time_to_seizure = .;
+		label time_to_seizure = "Days to Seizure or Censor Day";
+run;
+proc print
+	label data = time_to_seizure;
+run;
