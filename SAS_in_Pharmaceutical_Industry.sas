@@ -2369,3 +2369,1095 @@ look toward generalizing with the SAS macro language:
 3. Data transposition
 4. Output formatting, pagination;
 
+
+/***************************************************/
+/****Chapter 6: Creating Clinical Trial Graphs*****/
+
+************************************************
+*********Scartter Plot using PROC GPLOT*********
+************************************************;
+
+**** INPUT SAMPLE HEMATOCRIT LAB DATA.;
+data labs;
+label baseline = "Baseline Result"
+	value = "Visit 3 Result"
+	trt = "Treatment";
+input subject_id lbtest $ value baseline trt $ @@;
+datalines;
+101 hct 35.0 31.0 a 102 hct 40.2 30.0 a
+103 hct 42.0 42.4 b 104 hct 41.2 41.4 b
+105 hct 35.0 33.3 a 106 hct 34.3 34.3 a
+107 hct 30.3 44.0 b 108 hct 34.2 42.0 b
+109 hct 40.0 41.1 b 110 hct 41.0 42.1 b
+111 hct 33.3 33.8 a 112 hct 34.0 31.0 a
+113 hct 34.0 41.0 b 114 hct 34.0 40.0 b
+115 hct 37.2 35.2 a 116 hct 39.3 36.2 a
+117 hct 36.3 38.3 b 118 hct 37.4 37.3 b
+119 hct 44.2 34.3 a 120 hct 42.2 36.5 a
+;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND SET COLORS TO BLACK.;
+filename fileref1 "C:\lab_scatter.cgm";
+goptions device = CGMOF97L
+		gsfname = fileref1
+		gsfmode = replace
+		reset = symbol
+		colors = (black);
+**** DEFINE PLOT SYMBOLS. TRT = A = CIRCLE, B = PLUS SIGN.;
+symbol1 value = CIRCLE;
+symbol2 value = PLUS;
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis1 order = (30 to 45 by 5)
+		label = (angle = 90 height = 1.5)
+		value = (height = 1.5)
+		offset = (1 cm, );
+**** DEFINE HORIZONTAL AXIS OPTIONS.;
+axis2 order = (30 to 45 by 5)
+		label = (height = 1.5)
+		value = (height = 1.5)
+		offset = (1 cm, );
+**** DEFINE THE LEGEND FOR THE BOTTOM OF THE GRAPH.;
+legend1 frame
+		value = (height = 1.5)
+		label = (height = 1.5 justify = right 'Treatment:')
+		position = (bottom center outside);
+**** CREATE LINE OF EQUIVALENCE USING AN ANNOTATE DATA SET.;
+data annotate;
+	format function $8.;
+	format xsys ysys $1.;
+	**** SET COORDINATE SYSTEM AND POSITIONING.
+	**** XSYS/YSYS = 1 SETS THE COORDINATES RELATIVE TO THE
+	**** PLOT AREA.;
+	xsys = '1';
+	ysys = '1';
+	line = 1;
+	size = 2;
+	color = 'BLACK';
+	**** MOVE TO LOWER LEFT CORNER.;
+	function = 'MOVE';
+	x = 0;
+	y = 0;
+	output;
+	**** DRAW LINE FROM LOWER LEFT CORNER TO UPPER RIGHT CORNER.;
+	function = 'DRAW';
+	x = 100;
+	y = 100;
+	output;
+run;
+**** CREATE SCATTERPLOT. BASELINE IS ON THE Y AXIS, VISIT 3 IS
+**** ON THE X AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT.;
+proc gplot
+	data = labs;
+	plot baseline * value = trt / vaxis = axis1
+									haxis = axis2
+									anno = annotate
+									legend = legend1
+									noframe;
+title1 height = 2 font = "Helvetica"
+		"Hematocrit (%) Scatter Plot";
+title2 height = 2 font = "Helvetica"
+		"at Visit 3";
+run;
+quit;
+
+*********************************************************
+******Clinical Response Line Plot using PROC GPLOT*******
+*********************************************************;
+**** INPUT SAMPLE MEAN CLINICAL RESPONSE VALUES.;
+data response;
+label response = "Mean Clinical Response"
+	visit = "Visit"
+	trt = "Treatment";
+input trt visit response @@;
+datalines;
+1 0 9.40 2 0 9.35
+1 1 9.35 2 1 9.40
+1 2 8.22 2 2 8.78
+1 3 6.33 2 3 8.23
+1 4 4.00 2 4 7.77
+1 5 2.22 2 5 4.46
+1 6 1.44 2 6 2.00
+1 7 1.13 2 7 1.86
+1 8 0.55 2 8 1.44
+1 9 0.67 2 9 1.33
+1 10 0.45 2 10 1.01
+;
+run;
+**** CREATE VISIT FORMAT.;
+proc format;
+	value visit
+		0 = "Baseline"
+		1 = "Day 1"
+		2 = "Day 2"
+		3 = "Day 3"
+		4 = "Day 4"
+		5 = "Day 5"
+		6 = "Day 6"
+		7 = "Day 7"
+		8 = "Day 8"
+		9 = "Day 9"
+		10 = "Day 10";
+	value trt
+		1 = "Super Drug"
+		2 = "Old Drug";
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND SET COLORS TO BLACK.;
+filename fileref "C:\plot_signsymp_mean.cgm";
+goptions device = CGMOF97L
+		gsfname = fileref
+		gsfmode = REPLACE
+		reset = symbol
+		colors = (black);
+**** DEFINE PLOT SYMBOLS. DOT = SUPER DRUG WITH SOLID LINE,
+**** CIRCLE = OLD DRUG WITH DOTTED LINE. I = J CONNECTS POINTS.;
+symbol1 c = black line = 1 v = dot i = j;
+symbol2 c = black line = 2 v = circle i = j;
+**** DEFINE HORIZONTAL AXIS OPTIONS.;
+axis1 order = (0 to 10 by 1)
+		value = (angle = 90 height = 1.5)
+		label = (height = 1.5 "Visit")
+		minor = none
+		offset = (1,1);
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis2 order = (0 to 10 by 1)
+		value = (height = 1.5)
+		label = (height = 1.5 angle = 90 "Mean Clinical Response")
+		minor = none
+		offset = (1,1);
+**** DEFINE THE LEGEND FOR THE TOP RIGHT OF THE GRAPH.;
+legend1 label = (height = 1.5 "Treatment:")
+		order = (1 2)
+		value = (height = 1.5 justify = left
+		"Super Drug" "Old Drug" )
+		down = 2
+		position = (top right inside)
+		mode = protect
+		frame;
+**** CREATE LINE PLOT. VISIT IS ON THE X AXIS, RESPONSE IS ON
+**** THE Y AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT. A
+**** REFERENCE LINE IS DRAWN JUST BEFORE DAY 1 TO SET APART
+**** POST TREATMENT DATA.;
+proc gplot
+	data = response;
+	plot response * visit = trt /haxis = axis1
+								vaxis = axis2
+								legend = legend1
+								href = (0.9);
+	format visit visit.;
+	title1 h = 2 font = "TimesRoman"
+			"Mean Clinical Response by Visit";
+run;
+quit;
+
+*********************************************************
+******Clinical Response Bar Chart using PROC GPLOT*******
+*********************************************************;
+**** INPUT SAMPLE PAIN SCALE DATA.;
+data pain;
+label subject = "Subject"
+		pain = "Pain Score"
+		trt = "Treatment";
+input subject pain trt @@;
+datalines;
+113 1 1 420 1 2 780 0 3
+121 1 1 423 0 2 784 0 3
+122 1 1 465 4 2 785 1 3
+124 4 1 481 3 2 786 3 3
+164 4 1 482 0 2 787 0 3
+177 4 1 483 0 2 789 0 3
+178 0 1 484 0 2 790 2 3
+179 1 1 485 0 2 791 0 3
+184 0 1 486 1 2 793 3 3
+185 0 1 487 0 2 794 2 3
+186 3 1 489 0 2 795 1 3
+187 0 1 490 1 2 796 4 3
+188 1 1 491 0 2 797 2 3
+189 3 1 493 2 2 798 1 3
+190 3 1 494 1 2 799 2 3
+191 2 1 495 0 2 800 2 3
+192 3 1 496 2 2 822 1 3
+193 4 1 498 0 2 841 1 3
+194 4 1 499 2 2 842 1 3
+195 0 1 500 2 2 847 2 3
+196 4 1 521 1 2 863 1 3
+197 1 1 522 1 2 881 2 3
+198 4 1 541 1 2 966 1 3
+199 3 1 542 0 2 967 0 3
+100 4 1 561 3 2 968 0 3
+121 2 1 562 2 2 981 1 3
+122 2 1 581 2 2 982 1 3
+123 4 1 561 1 2 985 0 3
+124 2 1 564 1 2 986 0 3
+141 3 1 566 1 2 987 0 3
+142 2 1 567 2 2 989 2 3
+143 2 1 568 2 2 990 3 3
+147 4 1 569 0 2 991 0 3
+161 4 1 581 0 2 992 2 3
+162 4 1 582 3 2 993 1 3
+163 4 1 584 1 2 994 0 3
+164 0 1 585 0 2 995 1 3
+165 2 1 586 1 2 996 0 3
+166 1 1 587 1 2 997 3 3
+167 3 1 591 1 2 998 0 3
+181 2 1 592 1 2 999 0 3
+221 4 1 594 1 2 706 0 3
+281 4 1 595 0 2 707 3 3
+282 4 1 596 0 2 708 1 3
+361 4 1 597 0 2 709 0 3
+362 4 1 601 0 2 710 1 3
+364 3 1 602 1 2 711 1 3
+365 4 1 603 2 2 712 0 3
+366 3 1 604 1 2 713 4 3
+367 4 1 605 1 2 714 0 3
+;
+**** MAKE FORMATS FOR CHART.;
+proc format;
+	value trt
+		1 = 'Placebo'
+		2 = 'Old Drug'
+		3 = 'New Drug';
+	value score
+		0 = '0'
+		1 = '1-2'
+		2 = '3-4'
+		3 = '5-6'
+		4 = '7-8';
+	picture newpct (round)
+		0 = " "
+		0 < - < .5 = "<1%"
+		.6 < - high = "000%";
+run;
+proc sort
+data = pain;
+by trt;
+run;
+**** GET FREQUENCY COUNTS FOR CHART AND PUT IN FREQOUT DATA SET.;
+proc freq
+	data = pain
+	noprint;
+		by trt;
+		tables pain /out = freqout;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND SET BACKGROUND TO WHITE AND OTHER
+**** COLORS TO BLACK.;
+filename fileref "C:\bar_chart.cgm";
+goptions device = cgmof97l
+			gsfname = fileref
+			gsfmode = replace
+			reset = symbol
+			cback = white
+			colors = (black)
+			chartype = 6;
+**** DEFINE BAR PATTERNS: WHITE = PLACEBO, GRAY = OLD DRUG,
+**** BLACK = NEW DRUG.;
+pattern1 value = solid color = white;
+pattern2 value = solid color = gray;
+pattern3 value = solid color = black ;
+**** DEFINE HORIZONTAL AXIS OPTIONS.;
+axis1 label = (h = 1 'Pain Score')
+		value = (h = 1 )
+		order = (0 to 4 by 1);
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis2 label = (h = 1.2 r = 0 a = 90 'Percentage of Patients' )
+		order = (0 to 50 by 10);
+**** CREATE BAR CHART. PERCENTAGE OF PATIENTS IS ON THE Y AXIS,
+**** PAIN SCORE BY TREATMENT IS ON THE X AXIS.;
+proc gchart
+	data = freqout;
+	vbar3d pain /group = trt
+				sumvar = percent
+				maxis = axis1
+				raxis = axis2
+				midpoints = 0 1 2 3 4
+				cframe = white
+				coutline = black
+				outside = sum
+				patternid = group;
+	format trt trt.
+			pain score.
+			percent newpct.;
+	title1 font = "TimesRoman" h = 2 color = black
+			"Summary of Pain Score by Treatment";
+run;
+quit;
+
+**************************************
+******Box Plot using PROC GPLOT*******
+**************************************;
+**** INPUT SAMPLE PAIN SCALE DATA;
+data seizures;
+label seizures = "Seizures per Hour"
+		visit = "Visit"
+		trt = "Treatment";
+input trt visit seizures @@;
+datalines;
+1 2 1.5 2 1 3 2 2 1.8
+2 1 2.6 2 2 2 2 3 2
+1 1 2.8 2 3 2.6 1 1 3
+1 2 2.2 1 1 2.4 2 1 3.2
+2 1 3.2 1 2 1.4 1 1 2.6
+2 2 2.1 1 3 1.8 1 2 1.2
+1 1 2.6 2 1 3 1 3 1.8
+2 1 2.2 1 1 3.6 2 1 2.1
+2 2 3.2 1 2 2 2 2 1
+1 1 2.6 1 3 3.6 2 3 1.8
+1 2 2.2 2 1 3.6 1 1 2.6
+1 3 2.2 2 2 2.6 2 1 4
+2 1 2.8 2 3 2 2 3 3.6
+2 2 2.6 1 1 2.8 1 1 3.4
+2 3 2.6 1 2 1.8 1 2 3
+1 1 2.0 1 3 1.6 2 1 3.4
+1 2 2.4 2 1 3.8 2 2 2
+2 1 2.1 2 2 3 1 1 2.6
+2 2 1.2 2 3 3.4 1 3 1.8
+2 3 1 1 1 4 2 1 2.0
+1 1 2.9 1 3 3.4 1 1 2.8
+1 2 1.6 2 1 2.8 2 1 2.4
+1 3 1.2 2 2 1.2 1 1 3.6
+2 1 2.8 2 3 1.2 2 1 3.2
+2 2 2.6 1 1 1.8 2 2 2.2
+2 3 3.2 1 2 2 2 3 3.2
+1 1 2.8 1 3 2.2 1 1 4
+1 2 1.4 2 1 3 2 1 3.2
+1 3 2 2 2 1.4 1 1 2.4
+2 1 1.6 2 3 1.4 2 1 4
+1 1 2.8 1 1 3.6 2 2 2.2
+1 2 1.4 1 2 1.4 1 1 4
+1 3 1.2 2 1 2.2
+;
+proc format;
+	value trt
+		1 = "Active"
+		2 = "Placebo";
+run;
+**** CREATE PLOTVISIT VARIABLE WHICH IS A SLIGHTLY OFFSET VISIT
+**** VALUE TO MAKE TRT DISTINGUISHABLE ON THE X AXIS. OTHERWISE,
+**** TREATMENT 1 AND 2 WOULD HAVE OVERLAPPING BOXES.;
+data seizures;
+	set seizures;
+	if trt = 1 then
+		plotvisit = visit - .1;
+	else if trt = 2 then
+		plotvisit = visit + .1;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref 'C:\whisker.cgm';
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black)
+	chartype = 6;
+**** SET SYMBOL DEFINITIONS.
+**** SET LINE THICKNESS WITH WIDTH AND BOX WIDTH WITH BWIDTH.
+**** ACTIVE DRUG IS DEFINED AS A SOLID BLACK LINE IN SYMBOL1
+**** AND PLACEBO GETS A DASHED GRAY LINE IN SYMBOL2.
+**** VALUE = NONE SUPPRESSES THE ACTUAL DATA POINTS.
+**** BOXJT00 MEANS TO CREATE BOX PLOTS WITH BOXES (25TH AND 75TH
+**** PERCENTILES - THE INTERQUARTILE RANGE) JOINED (J) AT THE
+**** MEDIANS WITH WHISKERS EXTENDING TO THE MINIMUM AND MAXIMUM
+**** VALUES (00) AND TOPPED/BOTTOMED (T) WITH A DASH.
+**** MODE = INCLUDE OPTION ENSURES THAT VALUES THAT MIGHT FALL
+**** OUTSIDE OF THE EXPLICITLY STATED AXIS ORDER WOULD BE
+**** INCLUDED IN THE BOX AND WHISKER DEFINITION.;
+symbol1 width = 28 bwidth = 3 color = black line = 1 value = none
+		interpol = BOXJT00 mode = include;
+symbol2 width = 28 bwidth = 3 color = gray line = 2 value = none
+		interpol = BOXJT00 mode = include;
+**** DEFINE THE LEGEND FOR THE BOTTOM CENTER OF THE PAGE.;
+legend1
+	frame
+	value = (height = 1.5)
+	label = (height = 1.5 justify = right 'Treatment:' )
+	position = (bottom center outside);
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis1 label = (h = 1.5 r = 0 a = 90 "Seizures per Hour")
+		value = (h = 1.5 )
+		minor = (n = 3);
+**** DEFINE HORIZONTAL AXIS OPTIONS.
+**** THE HORIZONTAL AXIS MUST GO FROM 0 TO 4 HERE BECAUSE OF THE
+**** OFFSET APPLIED TO VISIT. NOTICE THAT THE VALUE FOR VISIT
+**** OF 0 AND 4 IS SET TO BLANK.;
+axis2 label = (h = 1.5 "Visit")
+	value = (h = 1.5 " " "Baseline" "6 Months" "9 Months" " ")
+	order = (0 to 4 by 1)
+	minor = none;
+**** CREATE BOX PLOT. VISIT IS ON THE X AXIS, SEIZURES ARE ON
+**** THE Y AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT.;
+proc gplot
+	data = seizures;
+	plot seizures * plotvisit = trt /vaxis = axis1
+									haxis = axis2
+									legend = legend1
+									noframe;
+	format trt trt.;
+	title1 h = 2 font = "TimesRoman"
+			"Seizures per Hour by Treatment";
+	footnote1 h = 1.5 j = l font = "TimesRoman"
+			"Box extends to 25th and 75th percentile.";
+	footnote2 h = 1.5 j = l font = "TimesRoman"
+			"Whiskers extend to minimum and maximum values.";
+run;
+quit;
+
+************************************************
+******Box Plot with Means using PROC GPLOT******
+************************************************;
+proc format;
+	value trt
+		1 = "Active"
+		2 = "Placebo";
+run;
+**** SORT THE DATA AND GET THE MEAN SEIZURE VALUE BY VISIT AND
+**** TREATMENT.;
+proc sort
+	data = seizures;
+		by visit trt;
+run;
+proc univariate
+	data = seizures noprint;
+	by visit trt;
+	var seizures;
+	output out = stats mean = mean;
+run;
+**** MERGE THE MEAN VALUES BACK IN WITH THE SEIZURE DATA.;
+data seizures;
+	merge seizures stats;
+		by visit trt;
+run;
+**** CREATE PLOTVISIT VARIABLE WHICH IS A SLIGHTLY OFFSET VISIT
+**** VALUE TO MAKE TRT DISTINGUISHABLE ON THE X AXIS. OTHERWISE,
+**** TREATMENT 1 AND 2 WOULD HAVE OVERLAPPING BOXES.;
+data seizures;
+	set seizures;
+	if trt = 1 then
+		plotvisit = visit - .1;
+	else
+		plotvisit = visit + .1;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref 'C:\whisker_mean.cgm';
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black)
+	chartype = 6;
+**** SET SYMBOL DEFINITIONS.
+**** SET LINE THICKNESS WITH WIDTH AND BOX WIDTH WITH BWIDTH.
+**** ACTIVE DRUG IS DEFINED AS A SOLID BLACK LINE IN SYMBOL1
+**** AND PLACEBO GETS A DASHED GRAY LINE IN SYMBOL2.
+**** VALUE = NONE SUPPRESSES THE ACTUAL DATA POINTS.
+**** BOXJT00 MEANS TO CREATE BOX PLOTS WITH BOXES (25TH AND 75TH
+**** PERCENTILES - THE INTERQUARTILE RANGE) JOINED (J) AT THE
+**** MEDIANS WITH WHISKERS EXTENDING TO THE MINIMUM AND MAXIMUM
+**** VALUES (00) AND TOPPED/BOTTOMED (T) WITH A DASH.
+**** MODE = INCLUDE OPTION ENSURES THAT VALUES THAT MIGHT FALL
+**** OUTSIDE OF THE EXPLICITLY STATED AXIS ORDER WOULD BE
+**** INCLUDED IN THE BOX AND WHISKER DEFINITION.;
+symbol1 width = 28 bwidth = 3 color = black line = 1 value =
+none
+		interpol = BOXJT00 mode = include;
+symbol2 width = 28 bwidth = 3 color = gray line = 2 value =
+none
+		interpol = BOXJT00 mode = include;
+**** ADD TWO NEW SYMBOL STATEMENTS TO PLOT THE MEAN VALUES.;
+symbol3 color = black value = dot;
+symbol4 color = gray value = dot;
+**** DEFINE THE LEGEND FOR THE BOTTOM CENTER OF THE PAGE.;
+legend1
+	frame
+	value = (height = 1.5)
+	label = (height = 1.5 justify = right 'Treatment:' )
+	position = (bottom center outside);
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis1 label = (h = 1.5 r = 0 a = 90 "Seizures per Hour")
+	value = (h = 1.5 )
+	minor = (n = 3);
+**** DEFINE HORIZONTAL AXIS OPTIONS.
+**** THE HORIZONTAL AXIS MUST GO FROM 0 TO 4 HERE BECAUSE OF THE
+**** OFFSET APPLIED TO VISIT. NOTICE THAT THE VALUE FOR VISIT
+**** OF 0 AND 4 IS SET TO BLANK.;
+axis2 label = (h = 1.5 "Visit")
+		value = (h = 1.5 " " "Baseline" "6 Months" "9 Months" "")
+		order = (0 to 4 by 1)
+		minor = none;
+**** ADD NEW AXIS FOR PLOT2 STATEMENT BELOW. WHITE IS USED TO
+**** MAKE THE AXIS INVISIBLE ON THE PLOT.;
+axis3 color = white
+		label = (color = white h = .3 " " )
+		value = (color = white h = .3)
+		order = (1 to 4 by 1);
+**** CREATE BOX PLOT. VISIT IS ON THE X AXIS, SEIZURES ARE ON
+**** THE Y AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT. THE
+**** PLOT2 STATEMENT IS RESPONSIBLE FOR PLACING THE MEAN VALUES
+**** ON THE PLOT.;
+proc gplot
+	data = seizures;
+	plot seizures * plotvisit = trt /vaxis = axis1
+									haxis = axis2
+									legend = legend1
+									noframe;
+	plot2 mean * plotvisit = trt /vaxis = axis3
+									nolegend;
+	format trt trt.;
+	title1 h = 2 font = "TimesRoman"
+			"Seizures per Hour by Treatment";
+	footnote1 h = 1.5 j = l font = "TimesRoman"
+			"Box extends to 25th and 75th percentile. Whiskers"
+			" extend to";
+	footnote2 h = 1.5 j = l font = "TimesRoman"
+			"minimum and maximum values. Mean values are"
+			" represented by";
+	footnote3 h = 1.5 j = l font = "TimesRoman"
+			" a dot while medians are connected by the line.";
+	footnote4 h = .5 " ";
+run;
+quit;
+
+**************************************************
+******Box Plot with Means using PROC BOXPLOT******
+**************************************************;
+**** CREATE PLOTVISIT VARIABLE WHICH IS A SLIGHTLY OFFSET VISIT
+**** VALUE TO MAKE TRT DISTINGUISHABLE ON THE X AXIS. OTHERWISE,
+**** TREATMENT 1 AND 2 WOULD HAVE OVERLAPPING BOXES.;
+data seizures;
+	set seizures;
+	if trt = 1 then
+		plotvisit = visit - .1;
+	else if trt = 2 then
+		plotvisit = visit + .1;
+run;
+**** SORT DATA FOR PROC BOXPLOT.;
+proc sort
+	data = seizures;
+		by plotvisit;
+run;
+**** FORMATS FOR BOX PLOT.;
+proc format;
+	value trt
+		1 = "Active"
+		2 = "Placebo";
+	value visit
+		1 = "Baseline"
+		2 = "6 Months"
+		3 = "9 Months"
+		other = " ";
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref 'C:\whisker_proc_boxplot.cgm';
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black)
+	chartype = 6;
+**** SET SYMBOL DEFINITIONS.;
+symbol1 value = dot;
+symbol2 value = circle;
+**** CREATE BOX PLOT. VISIT IS ON THE X AXIS, SEIZURES ARE ON
+**** THE Y AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT.;
+proc boxplot
+	data = seizures;
+	plot seizures * plotvisit = trt / haxis = (0,1,2,3,4)
+										boxwidth = 3
+										hoffset = 0;
+	format trt trt. plotvisit visit.;
+	label plotvisit = "Visit";
+	title1 h = 2 font = "TimesRoman"
+			"Seizures per Hour by Treatment";
+	footnote1 h = 1.5 j = l font = "TimesRoman"
+			"Box extends to 25th and 75th percentile. Whiskers"
+			" extend to";
+	footnote2 h = 1.5 j = l font = "TimesRoman"
+			"minimum and maximum values. Mean values are"
+			" represented by";
+	footnote3 h = 1.5 j = l font = "TimesRoman"
+			"a dot while medians are horizontal lines.";
+	footnote4 h = .5 " ";
+run;
+quit;
+
+**********************************************
+******Odds Ratio Plot using PROC BOXPLOT******
+**********************************************;
+**** INPUT SAMPLE PAIN DATA.;
+data pain;
+label success = "Therapy Success"
+		trt = "Treatment"
+		male = "Male"
+		race = "Race"
+		basepain = "Baseline Pain Score";
+input success trt male race basepain @@;
+datalines;
+1 0 1 3 20 1 0 1 1 31 1 0 1 2 40 1 0 1 1 50 1 1 2 1 60
+1 1 2 1 22 0 0 1 2 23 1 1 2 1 20 0 0 2 2 20 0 0 2 1 23
+1 0 2 2 20 1 1 1 1 25 1 1 1 1 20 1 1 2 1 20 1 1 2 2 20
+1 1 1 1 10 1 0 2 1 25 0 0 1 3 40 1 0 1 1 20 1 0 1 1 20
+0 0 1 3 24 1 1 1 1 30 0 1 1 2 20 0 1 2 1 21 0 1 1 2 34
+0 0 2 1 20 1 0 1 2 20 1 0 1 1 20 1 0 1 2 20 1 1 2 1 55
+1 1 1 3 22 1 1 1 1 34 1 1 1 2 40 1 1 1 1 50 1 1 1 1 60
+0 0 2 1 20 0 0 2 2 20 0 0 2 1 20 0 0 2 2 20 0 0 1 1 20
+1 1 1 2 25 1 1 1 1 23 1 0 2 1 20 1 1 2 1 20 1 0 1 2 22
+1 0 1 1 11 1 0 1 1 33 0 0 2 3 40 1 0 1 1 20 0 1 1 1 21
+1 1 2 3 24 1 0 2 1 30 1 1 1 2 20 1 1 2 1 21 0 1 1 2 33
+0 0 2 1 20 1 1 1 2 22 1 1 2 1 20 1 1 1 2 20 1 0 1 1 50
+0 0 1 1 55 0 0 1 2 12 0 1 1 1 20 1 1 1 2 22 1 1 1 1 12
+;
+**** GET ADJUSTED ODDS RATIOS FROM PROC LOGISTIC AND PLACE
+**** THEM IN DATA SET WALD.;
+ods output CloddsWald = odds;
+proc logistic
+	data = pain
+	descending;
+	model success = basepain male race trt / clodds = wald;
+run;
+ods output close;
+***** RECATEGORIZE EFFECT FOR Y AXIS FORMATTING PURPOSES.;
+data odds;
+	set odds;
+	select(effect);
+		when("basepain") y = 1;
+		when("male") y = 2;
+		when("race") y = 3;
+		when("trt") y = 4;
+		otherwise;
+	end;
+run;
+**** FORMAT FOR EFFECT;
+proc format;
+	value effect
+		1 = "Baseline Pain (continuous)"
+		2 = "Male vs. Female"
+		3 = "White vs. Black"
+		4 = "Active Therapy vs. Placebo";
+run;
+**** ANNOTATE DATA SET TO DRAW THE HORIZONTAL LINE, ESTIMATE, AND
+**** WHISKER.;
+data annotate;
+	set odds;
+	length function $ 8 position xsys ysys $ 1;
+	i = 0.10; **** whisker width.;
+	basey = y; **** hang onto row position.;
+	**** set coordinate system and positioning.;
+	position = '5';
+	xsys = '2';
+	ysys = '2';
+	line = 1;
+	**** plot estimates on right part of the graph.;
+	if oddsratioest ne . then
+		do;
+			*** place a DOT at OR estimate.;
+			function = 'SYMBOL';
+			text = 'DOT';
+			size = 1.5;
+			x = oddsratioest;
+			output;
+			*** move to LCL.;
+			function = 'MOVE';
+			x = lowercl;
+			output;
+			*** draw line to UCL.;
+			function = 'DRAW';
+			x = uppercl;
+			output;
+			*** move to LCL bottom of tick mark.;
+			function = 'MOVE';
+			x = lowercl;
+			y = basey - i;
+			output;
+			*** draw line to top of tick mark.;
+			function = 'DRAW';
+			x = lowercl;
+			y = basey + i;
+			output;
+			*** move to UCL bottom of tick mark.;
+			function = 'MOVE';
+			x = uppercl;
+			y = basey - i;
+			*** draw line to top of tick mark.;
+			output;
+			function = 'DRAW';
+			x = uppercl;
+			y = basey + i;
+			output;
+		end;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref 'C:\odds_ratio.cgm';
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black)
+	chartype = 6;
+**** DEFINE SYMBOL TO MAKE THE GRAPH SPACE THE PROPER SIZE BUT
+**** NOT TO ACTUALLY PLOT ANYTHING.;
+symbol color = black interpol = none value = none repeat = 2;
+**** DEFINE HORIZONTAL AXIS OPTIONS.;
+axis1 label = (h = 1.5 "Odds Ratio and 95% Confidence Interval")
+		value = (h = 1.2)
+		logbase = 2
+		logstyle = expand
+		order = (0.125,0.25,0.5,1,2,4,8,16)
+		offset = (2,2) ;
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis2 label = none
+		value = (h = 1.2)
+		order = (1 to 4 by 1)
+		minor = none
+		offset = (2,2);
+**** CREATE THE ODDS RATIO PLOT. THIS IS DONE PRIMARILY THROUGH
+**** THE INFORMATION IN THE ANNOTATION DATA SET. PUT A HORIZONTAL
+**** REFERENCE LINE AT 1 WHICH IS THE LINE OF SIGNIFICANCE.;
+proc gplot
+	data = odds;
+	plot y * lowercl y * uppercl / anno = annotate
+									overlay
+									href = 1
+									lhref = 2
+									haxis = axis1
+									vaxis = axis2;
+	format y effect.;
+	title1 h = 2.5 font = "TimesRoman"
+			"Odds Ratios for Clinical Success";
+run;
+quit;
+
+**********************************************************
+******Kaplan-Meier Estimates Plot using PROC BOXPLOT******
+**********************************************************;
+**** INPUT SAMPLE TIME TO DEATH DATA.
+**** DAYS TO DEATH IS THE NUMBER OF DAYS FROM RANDOMIZATION TO
+**** DEATH OR LAST PATIENT FOLLOW-UP. DEATHCENSOR VARIABLE IS A
+**** "1" IF THE PATIENT DIED AT THE TIME TO EVENT AND IT IS A "0"
+**** IF THE PATIENT WAS ALIVE AT LAST FOLLOW-UP. TO SAVE SPACE,
+**** PATIENT ID HAS BEEN OMITTED FROM THIS SAMPLE DATA SET.;
+data death;
+label trt = "Treatment"
+		daystodeath = "Days to Death"
+		deathcensor = "Death Censor";
+input trt $ daystodeath deathcensor @@;
+datalines;
+A 52 1 A 825 0 C 693 0 C 981 0
+B 279 1 B 826 0 B 531 0 B 15 0
+C 1057 0 C 793 0 B 1048 0 A 925 0
+C 470 0 A 251 1 C 830 0 B 668 1
+B 350 0 B 746 0 A 122 1 B 825 0
+A 163 1 C 735 0 B 699 0 B 771 1
+C 889 0 C 932 0 C 773 1 C 767 0
+A 155 0 A 708 0 A 547 0 A 462 1
+B 114 1 B 704 0 C 1044 0 A 702 1
+A 816 0 A 100 1 C 953 0 C 632 0
+C 959 0 C 675 0 C 960 1 A 51 0
+B 33 1 B 645 0 A 56 1 A 980 1
+C 150 0 A 638 0 B 905 0 B 341 1
+B 686 0 B 638 0 A 872 1 C 1347 0
+A 659 0 A 133 1 C 360 0 A 907 1
+C 70 0 A 592 0 B 112 0 B 882 1
+A 1007 0 C 594 0 C 7 0 B 361 0
+B 964 0 C 582 0 B 1024 1 A 540 1
+C 962 0 B 282 0 C 873 0 C 1294 0
+B 961 0 C 521 0 A 268 1 A 657 0
+C 1000 0 B 9 1 A 678 0 C 989 1
+A 910 0 C 1107 0 C 1071 1 A 971 0
+C 89 0 A 1111 0 C 701 0 B 364 1
+B 442 1 B 92 1 B 1079 0 A 93 0
+B 532 1 A 1062 0 A 903 0 C 792 0
+C 136 0 C 154 0 C 845 0 B 52 0
+A 839 0 B 1076 0 A 834 1 A 589 0
+A 815 0 A 1037 0 B 832 0 C 1120 0
+C 803 0 C 16 1 A 630 0 B 546 0
+A 28 1 A 1004 0 B 1020 0 A 75 0
+C 1299 0 B 79 0 C 170 0 B 945 0
+B 1056 0 B 947 0 A 1015 0 A 190 1
+B 1026 0 C 128 1 B 940 0 C 1270 0
+A 1022 1 A 915 0 A 427 1 A 177 1
+C 127 0 B 745 1 C 834 0 B 752 0
+A 1209 0 C 154 0 B 723 0 C 1244 0
+C 5 0 A 833 0 A 705 0 B 49 0
+B 954 0 B 60 1 C 705 0 A 528 0
+A 952 0 C 776 0 B 680 0 C 88 0
+C 23 0 B 776 0 A 667 0 C 155 0
+B 946 0 A 752 0 C 1076 0 A 380 1
+B 945 0 C 722 0 A 630 0 B 61 1
+C 931 0 B 2 0 B 583 0 A 282 1
+A 103 1 C 1036 0 C 599 0 C 17 0
+C 910 0 A 760 0 B 563 0 B 347 1
+B 907 0 B 896 0 A 544 0 A 404 1
+A 8 1 A 895 0 C 525 0 C 740 0
+C 11 0 C 446 1 C 522 0 C 254 0
+A 868 0 B 774 0 A 500 0 A 27 0
+B 842 0 A 268 1 B 505 0 B 505 1
+;
+run;
+**** PERFORM LIFETEST AND EXPORT SURVIVAL ESTIMATES.;
+ods output ProductLimitEstimates = survest;
+proc lifetest
+	data = death;
+	time daystodeath * deathcensor(0);
+	strata trt;
+run;
+ods output close;
+proc sort
+	data = survest;
+		by trt daystodeath;
+run;
+**** PREPARE THE SURVIVAL ESTIMATE DATA FOR PLOTTING.;
+data survest;
+	set survest;
+		by trt;
+		**** CALCULATE MONTH FOR PLOTTING.;
+		month = (daystodeath / 30.417); *** = 365/12;
+		**** ENSURE THAT THE LAST TIME TO EVENT VALUE WITHIN A
+		**** TREATMENT IS REPRESENTED ON THE PLOT IN THE CASE
+		**** THAT IT WAS NOT A DEATH.;
+		retain lastsurv;
+		if first.trt then
+			lastsurv = .;
+		if survival ne . then
+			lastsurv = survival;
+		if last.trt and survival = . then
+			survival = lastsurv;
+		**** REMOVE RECORDS WHERE ESTIMATE MISSING;
+		if survival ne . or last.trt;
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref 'C:\survival.cgm';
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black);
+**** DEFINE SYMBOLS. STEPJL INDICATES TO CREATE A STEP
+**** FUNCTION AND TO JOIN THE POINTS AT THE LEFT.;
+symbol1 c = black line = 2 v = NONE interpol = stepjl ;
+symbol2 c = black line = 4 v = NONE interpol = stepjl ;
+symbol3 c = black line = 1 v = NONE interpol = stepjl ;
+**** DEFINE HORIZONTAL AXIS OPTIONS.;
+axis1 order = (0 to 48 by 6)
+		label = (h = 1.5 "Months from Randomization")
+		minor = (number = 5)
+		offset = (0,1);
+**** DEFINE VERTICAL AXIS OPTIONS.;
+axis2 order = (0 to 1 by .1)
+		label = (h = 1.5 angle = 90 "Survival Probability")
+		minor = none
+		offset = (0,.75);
+**** DEFINE THE LEGEND FOR THE BOTTOM CENTER OF THE PAGE.;
+legend1 label = ("Treatment")
+		order = ("A" "B" "C")
+		value = ("Placebo" "Old Drug" "New Drug")
+		down = 3
+		position = (bottom center)
+		frame;
+**** CREATE KM PLOT. SURVIVAL ESTIMATE IS ON THE Y AXIS, MONTHS
+**** ARE ON THE X AXIS, AND THE VALUES ARE PLOTTED BY TREATMENT.;
+proc gplot
+	data = survest;
+	plot survival * month = trt / haxis = axis1
+									vaxis = axis2
+									legend = legend1 ;
+	format survival 4.1 month 2.;
+	title1 h = 2 font = "TimesRoman"
+			"Kaplan-Meier Survival Estimates for Death";
+run ;
+quit ;
+
+**********************************************************
+******Kaplan-Meier Estimates Plot using PROC LIFETEST*****
+**********************************************************;
+proc format;
+	value $trt
+		"A" = "Placebo"
+		"B" = "Old Drug"
+		"C" = "New Drug";
+run;
+**** DEFINE GRAPHICS OPTIONS: SET DEVICE DESTINATION TO MS
+**** OFFICE CGM FILE, REPLACE ANY EXISTING CGM FILE, RESET ANY
+**** SYMBOL DEFINITIONS, AND DEFINE DEFAULT FONT TYPE.;
+filename fileref "C:\survival_from_lifetest.cgm";
+goptions
+	device = cgmof97l
+	gsfname = fileref
+	gsfmode = replace
+	reset = symbol
+	colors = (black);
+**** DEFINE SYMBOLS.;
+symbol1 c = black line = 1 v = NONE;
+symbol2 c = black line = 4 v = NONE;
+symbol3 c = black line = 2 v = NONE;
+**** CREATE KAPLAN-MEIER PLOT WITH PROC LIFETEST.;
+proc lifetest
+	data = death
+	plots = (s)
+	censoredsymbol = none
+	eventsymbol = none;
+	time daystodeath * deathcensor(0);
+	strata trt;
+	format trt $trt.;
+	title1 h = 2 font = "TimesRoman"
+			"Kaplan-Meier Survival Estimates for Death";
+run;
+
+*selecting Graphics Drivers;
+filename fileref "C:\your_filename_here.valid_extension";
+goptions
+	device = DEVICE_NAME_FROM_PROC_GDEVICE
+	gsfname = fileref;
+
+*ODS destinations for SAS/GRAPH;
+ods rtf; **** SEND OUTPUT TO RTF DESTINATION;
+ods pdf; **** SEND OUTPUT TO PDF DESTINATION;
+ods html; **** SEND OUTPUT TO HTML DESTINATION;
+proc gplot
+	data = plotset;
+	plot survival * month = trt ;
+	title1 h = 2 "Kaplan-Meier Survival Estimates";
+run;
+quit ;
+ods rtf close;
+ods pdf close;
+ods html close;
+
+/*************************************************************/
+/******Chapter7: Common Analyses and Obtaining Statistics*****/
+
+*PROC FREQ to export descriptive statistics;
+proc freq
+	data = demog;
+		by trt;
+		tables a * b /out = freqs;
+run;
+
+*PROC UNIVARIATE to Export Descriptive Statistics;
+proc univariate
+	data = demog;
+		by trt;
+		var x;
+		output out = dsetname variables;
+run;
+
+*performing a 2*2 test for association;
+proc freq;
+	table headache * treatment / chisq;
+	output out = pvalue pchi;
+run;
+
+*performing a N*P test for association;
+proc freq;
+	table headache * treatment / chisq;
+	output out = pvalue pchi;
+run;
+table STRATA * TREATMENT * RESPONSE / cmh;
+
+*performing Logistic Regression;
+ods output OddsRatios = odds;
+ods output ParameterEstimates = estimates;
+proc logistic
+	descending;
+	model headache = treatment age head_trauma;
+run;
+ods output close;
+
+*One-Sample test of the Mean;
+ods output TTests = pvalue;
+proc ttest h0 = 0;
+	var ldl_change;
+run;
+ods output close;
+**The p-value for the t-test can be found in the 
+ “Probt” variable in the “pvalue” data set:
+
+*Two-Sample test of the Means;
+ods output Equality = variance_test;
+ods output TTests = pvalue;
+proc ttest
+	class treatment;
+	var ldl_change;
+run;
+ods output close;
+**** CHECK VARIANCES AND SELECT PROPER P-VALUE;
+data pvalue;
+	if _n_ = 1 then
+		set variance_test(keep = probf);
+	set pvalue(keep = variances probt);
+	keep probt;
+	if (probf <= .05 and variances = "Unequal") or
+		(probf > .05 and variances = "Equal");
+run;
+**compares the “ldl_change” change-from-baseline means for active 
+drug and placebo;
+proc npar1way
+	wilcoxon;
+	class treatment;
+	var ldl_change;
+	output out = pvalue wilcoxon;
+run;
+
+*N-Sample test of the Means;
+*Compare treatment means;
+proc glm
+	outstat = pvalue;
+	class treatment;
+	model ldl_change = treatment;
+run;
+quit;
+*if the populations to be compared across treatments are not 
+ Normally distributed, use the nonparametric Kruskal-Wallis test;
+proc npar1way
+	wilcoxon;
+	class treatment;
+	var ldl_change;
+	output out = pvalue wilcoxon;
+run;
+
+*Time-to-Event analysis statistics;
+**Let’s assume that you are comparing the two treatment groups of 
+“Active Drug” and“Placebo” to see if they display different 
+distributions for time to death;
+ods output HomTests = pvalue;
+proc lifetest
+	time daystodeath * deathcensor(0);
+	strata treatment;
+run;
+ods output close;
+*Adjust for gender as a covariate in your comparison of time to death;
+ods output ParameterEstimates = pvalue;
+proc phreg;
+	model daystodeath * deathcensor(0) = treatment gender;
+run;
+ods output close;
+
+*Correlation Coefficients;
+proc corr
+	outp = pearson;
+	var age weight;
+run;
+proc corr
+	outs = spearman;
+	var race treatment_success;
+run;
+
+
