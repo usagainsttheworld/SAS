@@ -3461,3 +3461,131 @@ proc corr
 run;
 
 
+/*************************************************/
+/*****Chapter 8: Exporting Data************/
+
+*creating SAS XPORT transport format data sets for FDA;
+libname sdtm "C:\sdtm_data";
+libname dm xport "C:\dm.xpt";
+**** PROC COPY METHOD TO CREATE A TRANSPORT FILE.;
+proc copy
+	in = sdtm
+	out = dm;
+		select dm;
+run;
+**** DATA STEP METHOD TO CREATE A TRANSPORT FILE.;
+data dm.dm;
+	set sdtm.dm;
+run;
+
+*creating SAS XPORT transport format data sets;
+***** THIS SAS MACRO CREATES A SERIES OF SAS XPORT FILES.;
+***** PARAMETERS: libname = raw data libref;
+***** dset = name of data set;
+%macro makexpt(libname=, dset=);
+	libname &dset xport "c:\&dset..xpt";
+	proc copy
+		in = &libname
+		out = &dset;
+			select &dset;
+	run;
+%mend makexpt;
+**** MAKEXPT CALLS;
+%makexpt(libname = sdtm, dset = dm)
+%makexpt(libname = sdtm, dset = ae)
+...;
+
+*PROC CDISC to create ODM XML file;
+libname sdtm "C:\sdtm_data";
+**** SPECIFY PROC CDISC PARAMETERS IN DATA STEPS.;
+data odm;
+	ODMVersion = "1.2";
+	fileOID = "2004-09-11 Transfer of XT802";
+	FileType = "Snapshot";
+run;
+data study;
+	StudyOID = "XT802";
+run;
+data globalvariables;
+	StudyName = "XT802";
+	StudyDescription =
+		"Clinical Trial XT802 - Study of Infectious Agent";
+	ProtocolName = "INVAG-XT802";
+run;
+data metadataversion;
+	MetadataVersionOID = "SDTMV3.1_01.00";
+	Name = "Submissions Data Tabulation Model Version 3.1 -
+	Trial Meta Version 01.00";
+run;
+**** GET DM DATA SET AND DEFINE 10 KEYSET VARIABLES.;
+data dm;
+	length __STUDYOID __METADATAVERSIONOID __STUDYEVENTOID
+			__SUBJECTKEY __FORMOID __ITEMGROUPOID
+			__ITEMGROUPREPEATKEY __TRANSACTIONTYPE
+			__STUDYEVENTREPEATKEY __FORMREPEATKEY $ 100.;
+	set sdtm.dm;
+	retain __STUDYOID "TRIALXT802"
+			__METADATAVERSIONOID "SDTMV3.1_01.00"
+			__STUDYEVENTOID "BASELINE"
+			__FORMOID "DM"
+			__ITEMGROUPOID "DM"
+			__ITEMGROUPREPEATKEY "1"
+			__TRANSACTIONTYPE "Snapshot"
+			__STUDYEVENTREPEATKEY "1"
+			__FORMREPEATKEY "1";
+	**** MAP __SUBJECTKEY NEEDED FOR EXPORT TO USUBJID.;
+	__SUBJECTKEY = usubjid;
+run;
+filename xmlout "C:\ODM_FILES\dm.xml";
+**** EXPORT ODM DM FILE.;
+proc cdisc
+	model = odm
+	write = xmlout;
+	odm data = work.odm;
+	study data = work.study;
+	globalvariables data = work.globalvariables;
+	metadataversion data = work.metadataversion;
+	clinicaldata data = work.DM
+					domain = "DM"
+					name = "Demographics"
+					comment = "Patient Demographics";
+run;
+
+*using XML LIBNAME engine to create ODM XML file;
+libname sdtm 'C:\sdtm_data';
+filename output 'C:\dm.xml';
+libname output xml xmltype = CDISCODM FormatActive = yes;
+**** GET DM DATA SET AND DEFINE 10 KEYSET VARIABLES.;
+data dm;
+	length __STUDYOID __METADATAVERSIONOID __STUDYEVENTOID
+			__SUBJECTKEY __FORMOID __ITEMGROUPOID
+			__ITEMGROUPREPEATKEY __TRANSACTIONTYPE
+			__STUDYEVENTREPEATKEY __FORMREPEATKEY $ 100.;
+	set sdtm.dm;
+	retain __STUDYOID "TRIALXT802"
+			__METADATAVERSIONOID "SDTMV3.1_01.00"
+			__STUDYEVENTOID "BASELINE"
+			__FORMOID "DM"
+			__ITEMGROUPOID "DM"
+			__ITEMGROUPREPEATKEY "1"
+			__TRANSACTIONTYPE "Snapshot"
+			__STUDYEVENTREPEATKEY "1"
+			__FORMREPEATKEY "1";
+	**** MAP __SUBJECTKEY NEEDED FOR EXPORT TO USUBJID;
+	__SUBJECTKEY = usubjid;
+run;
+**** EXPORT DM ODM FILE.;
+data output.dm;
+	set dm;
+run;
+
+*using PROC CPORT to create a SAS Transport file;
+libname library "c:\mytrial";
+filename tranfile 'c:\mytrial.xpt';
+**** COPY ALL SAS DATA SETS AND PERMANENT FORMATS FROM LIBRARY
+**** INTO MYTRIAL.XPT.;
+proc cport
+	library = library
+	file = tranfile
+	exclude sasmacr;
+run;
