@@ -14,20 +14,20 @@
 *defensive programming__parent-child data problem ;
 data aes;
 set aes;
-by subjectid;
-**** PARENT-CHILD WARNING;
-if (aeyn ne "YES" and aetext ne "") or
-(aeyn = "YES" and aetext = "") then
-put "WARN" "ING: ae parent-child bug " aeyn= aetext=;
-**** GET AES;
-if aeyn = "YES" or aetext ne "";
+	by subjectid;
+	**** PARENT-CHILD WARNING;
+	if (aeyn ne "YES" and aetext ne "") or
+		(aeyn = "YES" and aetext = "") then
+		put "WARN" "ING: ae parent-child bug " aeyn= aetext=;
+		**** GET AES;
+	if aeyn = "YES" or aetext ne "";
 run;
 
 *defensive programming__if-then/else1;
 if a > b then
-a = a + b;
+	a = a + b;
 else if a < b then
-a = a - b;
+	a = a - b;
 else
 put "How does a relate to b? " a= b=;
 
@@ -43,22 +43,22 @@ end;
 *Categorizing numeric data;
 data demog;
 set demog;
-by subject;
-if .z < age <= 18 then
-age_cat = 1;
-else if 18 < age <= 60 then
-age_cat = 2;
-else if 60 < age then
-age_cat = 3;
+	by subject;
+	if .z < age <= 18 then
+		age_cat = 1;
+	else if 18 < age <= 60 then
+		age_cat = 2;
+	else if 60 < age then
+		age_cat = 3;
 run;
 
 *handle free-text variables__put vars as coded;
 data adverse;
 label aecode = "Adverse Event Code"
-ae_verbatim = "AE Verbatim CRF text"
-ae_pt = "AE preferred term";
+		ae_verbatim = "AE Verbatim CRF text"
+		ae_pt = "AE preferred term";
 input subjectid $ 1-7 aecode $ 9-16
-ae_verbatim $ 18-39 ae_pt $ 40-60;
+		ae_verbatim $ 18-39 ae_pt $ 40-60;
 datalines;
 100-101 10019211 HEDACHE HEADACHE
 100-105 10019211 HEADACHE HEADACHE 
@@ -75,8 +75,8 @@ splitting lightheadedness and facial laceration into separate events
 leads to those data being summarized separately as well;
 run;
 proc freq
-data = adverse;
-tables ae_pt;
+	data = adverse;
+	tables ae_pt;
 run;
 
 *Avoid hardcoding data,if has to, use improved hardcoding as follows;
@@ -85,12 +85,12 @@ set endstudy;
 **** HARDCODE APPROVED BY DR. NAME AT SPONSOR ON 02/02/2005;
 if subjid = “101-1002” and “&sysdate” <= “01MAY2005”d then
 do;
-****If you know that an IDMC meeting will be held in April 2005 and 
-you do not want to worry about oldhardcodes, you could program them 
-so that they expire in this way;
-discterm = "Death";
+	****If you know that an IDMC meeting will be held in April 2005 and 
+	you do not want to worry about oldhardcodes, you could program them 
+	so that they expire in this way;
+	discterm = "Death";
 put “Subject “ subjid “hardcoded to termination reason”
-discterm;
+	discterm;
 run;
 
 *The best way to link the serious adverse events and adverse events 
@@ -102,10 +102,10 @@ linking variable key for you;
 *using SQL pass-through facility to get data from Oracle;
 proc sql;
 connect to oracle as oracle_tables
-(user = USERID orapw = PASSWORD path = "INSTANCE");
+			(user = USERID orapw = PASSWORD path = "INSTANCE");
 create table AE as
 select * from connection to oracle_tables
-(select * from AE_ORACLE_TABLE );
+	(select * from AE_ORACLE_TABLE );
 disconnect from oracle_tables;
 quit;
 
@@ -115,7 +115,7 @@ connect to oracle as oracle_tables
 (user = USERID orapw = PASSWORD path ="INSTANCE");
 create table library.AE as
 select * from connection to oracle_tables
-(select subject, verbatim, ae_date, pt_text
+				(select subject, verbatim, ae_date, pt_text
 from AE_ORACLE_TABLE
 where query_clean=”YES”);
 disconnect from oracle_tables;
@@ -141,25 +141,25 @@ data labnorm;
 infile 'C:\normal_ranges.txt' delimiter = '|' dsd missover
 firstobs = 2;
 informat Lab_Test $20.
-Units $9.
-Gender $1. ;
+			Units $9.
+			Gender $1. ;
 format Lab_Test $20.
-Units $9.
-Gender $gender.;
+			Units $9.
+			Gender $gender.;
 input Lab_Test $
-Units $
-Gender $
-Low_Age
-High_Age
-Low_Normal
-High_Normal;
+		Units $
+		Gender $
+		Low_Age
+		High_Age
+		Low_Normal
+		High_Normal;
 label Lab_Test = "Laboratory Test"
-Units = "Lab Units"
-Gender = "Gender"
-Low_Age = "Lower Age Range"
-High_Age = "Higher Age Range"
-Low_Normal = "Low Normal Lab Value Range"
-High_Normal = "High Normal Lab Value Range";
+		Units = "Lab Units"
+		Gender = "Gender"
+		Low_Age = "Lower Age Range"
+		High_Age = "Higher Age Range"
+		Low_Normal = "Low Normal Lab Value Range"
+		High_Normal = "High Normal Lab Value Range";
 run;
 
 *importing test files using Enterprise Guide interface;
@@ -197,10 +197,10 @@ quit;
 **GO GET NORMAL_RANGES WORKSHEET FROM EXCEL FILE;
 proc sql;
 connect to EXCEL (path = "C:\normal_ranges.xls" header = yes
-mixed = yes version = 2000 );
+			mixed = yes version = 2000 );
 create table normal_ranges as
 select * from connection to excel
-(select * from [normal_ranges$]);
+			(select * from [normal_ranges$]);
 disconnect from excel;
 quit;
 
@@ -215,7 +215,7 @@ proc sql;
 connect to access (path="C:\normal_ranges.mdb");
 create table normal_ranges as
 select * from connection to access
-(select * from normal_ranges);
+		(select * from normal_ranges);
 disconnect from access;
 quit;
 
@@ -238,17 +238,17 @@ run;
 filename dmodm "C:\dm.xml";
 **** PROC CDISC TO IMPORT DM.XML TO DM WORK DATA SET;
 proc cdisc
-model = odm
-read = dmodm
-formatactive = yes
-formatnoreplace = no;
-odm
-odmversion = "1.2"
-odmmaximumoidlength = 30
-odmminimumkeyset = no;
-clinicaldata
-out = work.dm
-sasdatasetname = "DM";
+	model = odm
+	read = dmodm
+	formatactive = yes
+	formatnoreplace = no;
+	odm
+	odmversion = "1.2"
+	odmmaximumoidlength = 30
+	odmminimumkeyset = no;
+	clinicaldata
+	out = work.dm
+	sasdatasetname = "DM";
 run;
 
 /************************************************************/
